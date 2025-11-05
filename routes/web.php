@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PaymentApprovalController;
 use App\Http\Controllers\Client\ReservationController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ExtraServiceController;
 
 /* ===== Público ===== */
 Route::get('/', fn () => view('welcome'))->name('home');
@@ -20,6 +21,7 @@ Route::get('/dashboard', fn () => view('dashboard'))
 
 /* ===== Autenticado ===== */
 Route::middleware('auth')->group(function () {
+
     // Perfil (Breeze)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -37,7 +39,7 @@ Route::middleware('auth')->group(function () {
             ->name('reservations.upload-receipt');
     });
 
-    /* ===== Admin (ahora con middleware propio 'admin.only') ===== */
+    /* ===== Admin (middleware propio 'admin.only') ===== */
     Route::prefix('admin')->name('admin.')->middleware('admin.only')->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
@@ -48,22 +50,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/payments', [PaymentApprovalController::class, 'index'])->name('payments.index');
         Route::post('/payments/{payment}/approve', [PaymentApprovalController::class, 'approve'])->name('payments.approve');
         Route::post('/payments/{payment}/reject',  [PaymentApprovalController::class, 'reject'])->name('payments.reject');
-    });
 
-    /* ===== Ruta de diagnóstico (temporal) ===== */
-    Route::get('/debug/me', function () {
-        $u = auth()->user();
-        return [
-            'email'         => $u?->email,
-            'role_attr'     => $u?->getAttributes()['role'] ?? null,
-            'role_cast'     => $u?->role instanceof \App\Enums\UserRole ? $u->role->value : $u?->role,
-            'is_admin_eval' => $u && (
-                ($u->role instanceof \App\Enums\UserRole && $u->role === \App\Enums\UserRole::ADMIN)
-                || ($u->role === 'admin')
-            ),
-            'db'            => DB::connection()->getDatabaseName(),
-        ];
-    })->name('debug.me');
+        // CRUD de Servicios Extras
+        Route::get('/extra-services', [ExtraServiceController::class, 'index'])->name('extra-services.index');
+        Route::get('/extra-services/create', [ExtraServiceController::class, 'create'])->name('extra-services.create');
+        Route::post('/extra-services', [ExtraServiceController::class, 'store'])->name('extra-services.store');
+        Route::get('/extra-services/{servicio}/edit', [ExtraServiceController::class, 'edit'])->name('extra-services.edit');
+        Route::put('/extra-services/{servicio}', [ExtraServiceController::class, 'update'])->name('extra-services.update');
+        Route::delete('/extra-services/{servicio}', [ExtraServiceController::class, 'destroy'])->name('extra-services.destroy');
+
+
+    });
 });
 
 /* ===== Auth (Breeze) ===== */
