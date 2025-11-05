@@ -1,5 +1,7 @@
 @php
-  $is = fn(string $name) => request()->routeIs($name) ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800';
+  $is = fn(string $name) => request()->routeIs($name)
+    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200'
+    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800';
 @endphp
 
 <aside class="w-64 shrink-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
@@ -25,6 +27,13 @@
        class="flex items-center gap-2 px-3 py-2 rounded-md {{ $is('admin.payments.*') }}">
       <span class="i-lucide-badge-dollar-sign w-4 h-4"></span>
       <span>Pagos</span>
+    </a>
+
+    {{-- Nueva sección: Servicios extras --}}
+    <a href="{{ route('admin.extra-services.index') }}"
+       class="flex items-center gap-2 px-3 py-2 rounded-md {{ $is('admin.extra-services.*') }}">
+      <span class="i-lucide-briefcase w-4 h-4"></span>
+      <span>Servicios extras</span>
     </a>
 
     {{-- Espacio para más secciones (reservas, tickets, etc.) --}}
