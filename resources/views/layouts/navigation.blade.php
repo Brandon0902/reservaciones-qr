@@ -7,10 +7,10 @@
   $displayName = $me?->full_name ?: ($me?->name ?: ($me?->email ?? 'Invitado'));
 
   // CTA reservar: si está autenticado va directo a crear; si no, a login con next
-  $nextUrl    = route('client.reservations.create');
-  $loginUrl   = route('login', ['next'=>$nextUrl]);
-  $registerUrl= route('register', ['next'=>$nextUrl]);
-  $reserveUrl = Auth::check() ? $nextUrl : $loginUrl;
+  $nextUrl     = route('client.reservations.create');
+  $loginUrl    = route('login', ['next'=>$nextUrl]);
+  $registerUrl = route('register', ['next'=>$nextUrl]);
+  $reserveUrl  = Auth::check() ? $nextUrl : $loginUrl;
 @endphp
 
 <nav x-data="{ open: false }" class="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur">
@@ -51,6 +51,14 @@
       {{-- ===== Right: Session / CTAs ===== --}}
       <div class="hidden sm:flex items-center gap-3">
 
+        {{-- Acceso rápido: Mis reservaciones (solo autenticado) --}}
+        @auth
+          <a href="{{ route('client.reservations.my') }}"
+             class="inline-flex items-center gap-2 rounded-xl border border-white/10 hover:bg-white/5 px-4 py-2 text-sm text-slate-200">
+            Mis reservaciones
+          </a>
+        @endauth
+
         {{-- CTA Reservar visible siempre --}}
         <a href="{{ $reserveUrl }}"
            class="hidden md:inline-flex items-center gap-2 rounded-xl bg-[#6d28d9] hover:bg-[#6d28d9]/90 px-4 py-2 text-sm font-medium text-white">
@@ -75,6 +83,8 @@
 
               <x-slot name="content">
                 <x-dropdown-link :href="route('client.dashboard')">Mi panel</x-dropdown-link>
+                {{-- NUEVO: Mis reservaciones en el dropdown --}}
+                <x-dropdown-link :href="route('client.reservations.my')">Mis reservaciones</x-dropdown-link>
                 <x-dropdown-link :href="route('profile.edit')">Perfil</x-dropdown-link>
 
                 <form method="POST" action="{{ route('logout') }}" class="mt-1">
@@ -120,7 +130,17 @@
       <a href="{{ route('home') }}#precios" class="block px-3 py-2 text-slate-300 hover:bg-white/5 rounded">Precios</a>
       <a href="{{ route('home') }}#extras"  class="block px-3 py-2 text-slate-300 hover:bg-white/5 rounded">Servicios extra</a>
       <a href="{{ route('home') }}#faq"     class="block px-3 py-2 text-slate-300 hover:bg-white/5 rounded">FAQ</a>
-      <a href="{{ $reserveUrl }}"           class="block px-3 py-2 text-slate-100 bg-[#6d28d9]/80 hover:bg-[#6d28d9] rounded">Reservar</a>
+
+      @auth
+        {{-- NUEVO: Mis reservaciones en mobile --}}
+        <a href="{{ route('client.reservations.my') }}" class="block px-3 py-2 text-slate-100 bg-white/5 hover:bg-white/10 rounded">
+          Mis reservaciones
+        </a>
+      @endauth
+
+      <a href="{{ $reserveUrl }}" class="block px-3 py-2 text-slate-100 bg-[#6d28d9]/80 hover:bg-[#6d28d9] rounded">
+        Reservar
+      </a>
     </div>
 
     {{-- Responsive session --}}
@@ -132,6 +152,7 @@
         </div>
         <div class="space-y-1">
           <a href="{{ route('client.dashboard') }}" class="block px-3 py-2 rounded hover:bg-white/5">Mi panel</a>
+          <a href="{{ route('client.reservations.my') }}" class="block px-3 py-2 rounded hover:bg-white/5">Mis reservaciones</a>
           <a href="{{ route('profile.edit') }}" class="block px-3 py-2 rounded hover:bg-white/5">Perfil</a>
           <form method="POST" action="{{ route('logout') }}">
             @csrf

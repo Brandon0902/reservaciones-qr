@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\TicketStatus; // enum: unused | used | expired | canceled
+use App\Enums\TicketStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,11 +13,13 @@ class Ticket extends Model
 
     protected $fillable = [
         'reservation_id',
-        'qr_payload',   // guardamos JSON como TEXT (cast array)
-        'status',       // enum
+        'token',       // ← UUID único del boleto
+        'qr_payload',  // ← JSON interno (no va en el QR)
+        'status',      // enum
         'issued_at',
         'used_at',
         'id_mesa',
+        'qr_path',     // ← archivo generado del QR (opcional)
     ];
 
     protected $casts = [
@@ -26,8 +28,6 @@ class Ticket extends Model
         'qr_payload' => 'array',
         'status'     => TicketStatus::class,
     ];
-
-    /* ========= Relaciones ========= */
 
     public function reservation(): BelongsTo
     {
