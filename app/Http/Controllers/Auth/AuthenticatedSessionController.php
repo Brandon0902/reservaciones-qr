@@ -13,11 +13,15 @@ use Illuminate\View\View;
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Show login view.
+     * Show login view. If "next" is present, set intended URL.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('auth.login');
+        if ($next = $request->query('next')) {
+            // Guardamos la URL a la que queremos volver tras login
+            $request->session()->put('url.intended', $next);
+        }
+        return view('auth.login', ['next' => $request->query('next')]);
     }
 
     /**
@@ -30,7 +34,7 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        // Bloquear completamente a VALIDATOR
+        // Bloquear a VALIDATOR
         if ($user->role === UserRole::VALIDATOR || $user->role === 'validator') {
             Auth::logout();
             $request->session()->invalidate();
@@ -41,12 +45,14 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        // Redirecciones permitidas
-        return match ($user->role) {
-            UserRole::ADMIN      => redirect()->intended(route('admin.dashboard', absolute: false)),
-            UserRole::CUSTOMER   => redirect()->intended(route('client.dashboard', absolute: false)),
-            default              => redirect()->intended(route('dashboard', absolute: false)),
+        // Fallback según rol, pero respetando la URL intended (si existe)
+        $fallback = match ($user->role) {
+            UserRole::ADMIN    => route('admin.dashboard', absolute: false),
+            UserRole::CUSTOMER => route('client.dashboard', absolute: false),
+            default            => route('dashboard', absolute: false),
         };
+
+        return redirect()->intended($fallback);
     }
 
     /**

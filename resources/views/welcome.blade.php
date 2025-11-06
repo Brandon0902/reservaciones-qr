@@ -1,7 +1,10 @@
 {{-- resources/views/welcome.blade.php --}}
 @php
-  $isAuth = auth()->check();
-  $ctaUrl = $isAuth ? route('client.reservations.create') : route('login');
+  $isAuth  = auth()->check();
+  $nextUrl = route('client.reservations.create');
+  $loginUrl = route('login', ['next' => $nextUrl]);
+  $registerUrl = route('register', ['next' => $nextUrl]);
+  $ctaUrl = $isAuth ? $nextUrl : $loginUrl;
 @endphp
 <!DOCTYPE html>
 <html lang="es" class="h-full scroll-smooth">
@@ -54,8 +57,8 @@
         @if($isAuth)
           <a href="{{ route('client.dashboard') }}" class="ml-2 px-3 py-2 text-sm rounded-md bg-white/10 hover:bg-white/20">Mi panel</a>
         @else
-          <a href="{{ route('login') }}" class="ml-2 px-3 py-2 text-sm rounded-md bg-white/10 hover:bg-white/20">Ingresar</a>
-          <a href="{{ route('register') }}" class="px-3 py-2 text-sm rounded-md bg-[--brand] hover:bg-[--brand]/90 text-white">Crear cuenta</a>
+          <a href="{{ $loginUrl }}" class="ml-2 px-3 py-2 text-sm rounded-md bg-white/10 hover:bg-white/20">Ingresar</a>
+          <a href="{{ $registerUrl }}" class="px-3 py-2 text-sm rounded-md bg-[--brand] hover:bg-[--brand]/90 text-white">Crear cuenta</a>
         @endif
       </div>
     </nav>
