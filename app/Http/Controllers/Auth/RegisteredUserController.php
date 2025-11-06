@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -15,11 +16,14 @@ use Illuminate\View\View;
 class RegisteredUserController extends Controller
 {
     /**
-     * Display the registration view.
+     * Display the registration view. If "next" is present, set intended URL.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('auth.register');
+        if ($next = $request->query('next')) {
+            $request->session()->put('url.intended', $next);
+        }
+        return view('auth.register', ['next' => $request->query('next')]);
     }
 
     /**
@@ -30,21 +34,28 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'full_name' => ['required', 'string', 'max:255'],
+            'email'     => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'phone'     => ['nullable', 'string', 'max:30'],
+            'password'  => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        // Registro público -> rol por defecto: CUSTOMER
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'full_name' => $request->string('full_name'),
+            'email'     => $request->string('email'),
+            'phone'     => $request->string('phone'),
+            'role'      => UserRole::CUSTOMER,
+            'password'  => Hash::make($request->string('password')),
         ]);
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        // Fallback de seguridad: si no hay intended, ve al dashboard cliente
+        $fallback = route('client.dashboard', absolute: false);
+
+        return redirect()->intended($fallback);
     }
 }

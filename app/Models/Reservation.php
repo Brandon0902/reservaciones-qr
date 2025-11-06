@@ -7,6 +7,7 @@ use App\Enums\ReservationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Reservation extends Model
@@ -15,18 +16,20 @@ class Reservation extends Model
 
     protected $fillable = [
         'user_id',
+        'event_name',       // NUEVO
         'date',
+        'shift',            // day | night
         'start_time',
         'end_time',
         'headcount',
-        'status',            // enum: pending | confirmed | canceled | checked_in | completed
+        'status',
         'hold_expires_at',
         'base_price',
         'discount_amount',
         'total_amount',
         'balance_amount',
-        'extra_service_id',
-        'source',            // enum: in_person | phone | whatsapp | web | other
+        'extra_service_id', // legacy, opcional
+        'source',
         'notes',
     ];
 
@@ -38,24 +41,17 @@ class Reservation extends Model
     ];
 
     /* ========= Relaciones ========= */
+    public function user(): BelongsTo { return $this->belongsTo(User::class); }
+    public function extraService(): BelongsTo { return $this->belongsTo(ExtraService::class); }
 
-    public function user(): BelongsTo
+    /** Múltiples extras seleccionados en la reserva */
+    public function extras(): BelongsToMany
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsToMany(ExtraService::class, 'reservation_extra_service')
+            ->withPivot(['quantity','unit_price','total_price'])
+            ->withTimestamps();
     }
 
-    public function extraService(): BelongsTo
-    {
-        return $this->belongsTo(ExtraService::class);
-    }
-
-    public function payments(): HasMany
-    {
-        return $this->hasMany(Payment::class);
-    }
-
-    public function tickets(): HasMany
-    {
-        return $this->hasMany(Ticket::class);
-    }
+    public function payments(): HasMany { return $this->hasMany(Payment::class); }
+    public function tickets(): HasMany { return $this->hasMany(Ticket::class); }
 }
