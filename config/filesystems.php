@@ -68,6 +68,13 @@ return [
             'visibility' => 'public',
         ],
 
+        'tickets' => [
+            'driver'     => 'local',
+            'root'       => storage_path('app/public/tickets'),
+            'url'        => env('APP_URL').'/storage/tickets',
+            'visibility' => 'public',
+        ],
+
 
     ],
 

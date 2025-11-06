@@ -23,19 +23,18 @@
       <span>Usuarios</span>
     </a>
 
-    <a href="{{ route('admin.payments.index') }}"
+    {{-- Redirige a pagos pendientes por defecto --}}
+    <a href="{{ route('admin.payments.index', ['status' => 'pending']) }}"
        class="flex items-center gap-2 px-3 py-2 rounded-md {{ $is('admin.payments.*') }}">
       <span class="i-lucide-badge-dollar-sign w-4 h-4"></span>
       <span>Pagos</span>
     </a>
 
-    {{-- Nueva sección: Servicios extras --}}
+    {{-- Servicios extras --}}
     <a href="{{ route('admin.extra-services.index') }}"
        class="flex items-center gap-2 px-3 py-2 rounded-md {{ $is('admin.extra-services.*') }}">
       <span class="i-lucide-briefcase w-4 h-4"></span>
       <span>Servicios extras</span>
     </a>
-
-    {{-- Espacio para más secciones (reservas, tickets, etc.) --}}
   </nav>
 </aside>
