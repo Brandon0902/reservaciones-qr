@@ -1,4 +1,3 @@
-{{-- resources/views/client/reservations/create.blade.php --}}
 <x-app-layout>
   <x-slot name="header">
     <div class="flex items-center justify-between">
@@ -34,6 +33,11 @@
     .fp-muted{ background:transparent !important; color:#64748b !important; }
     .fp-busy{ background:#7f1d1d !important; color:#fecaca !important; }
     .fp-free{ background:#064e3b !important; color:#bbf7d0 !important; }
+
+    /* Apariencia y bloqueo de inputs de hora */
+    .readonly-time { pointer-events:none; opacity:.75; }
+    .shift-card[aria-disabled="true"] { opacity:.45; filter:grayscale(0.3); pointer-events:none; }
+    .hidden-card { display:none; }
   </style>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -97,19 +101,19 @@
                        placeholder="dd/mm/aaaa" required autocomplete="off" />
                 <input id="date_iso" name="date" type="hidden" />
                 <small class="text-slate-400 text-xs">
-                  Debe reservarse con 7 días de anticipación. <strong>Primer día disponible se marcará en verde.</strong>
+                  Debe reservarse con 8 días de anticipación. <strong>Si un turno está ocupado, solo verás el turno disponible.</strong>
                 </small>
               </div>
 
               <div>
                 <x-input-label for="start_time" value="Hora inicio" class="text-slate-300" />
                 <x-text-input id="start_time" name="start_time" type="time"
-                              class="mt-1 block w-full dark:bg-slate-900/40" required />
+                              class="mt-1 block w-full dark:bg-slate-900/40 readonly-time" required readonly />
               </div>
               <div>
                 <x-input-label for="end_time" value="Hora fin" class="text-slate-300" />
                 <x-text-input id="end_time" name="end_time" type="time"
-                              class="mt-1 block w-full dark:bg-slate-900/40" required />
+                              class="mt-1 block w-full dark:bg-slate-900/40 readonly-time" required readonly />
               </div>
               <div>
                 <x-input-label for="headcount" value="No. de personas" class="text-slate-300" />
@@ -117,20 +121,21 @@
                               class="mt-1 block w-full dark:bg-slate-900/40" required />
               </div>
 
-              {{-- Horario --}}
+              {{-- Horario (turno) --}}
               <div>
                 <x-input-label value="Horario" class="text-slate-300" />
                 <div class="mt-2 grid grid-cols-2 gap-3">
-                  <label class="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-3 cursor-pointer flex items-start gap-2">
-                    <input type="radio" name="shift" value="day" x-model="shift" class="mt-1" @change="applyShiftTimes(true)">
+                  <label id="card-day" class="shift-card rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-3 cursor-pointer flex items-start gap-2">
+                    <input id="shift_day" type="radio" name="shift" value="day" x-model="shift" class="mt-1" @change="applyShiftTimes(true)">
                     <div>
                       <div class="font-medium">Matutino</div>
                       <div class="text-xs text-slate-400">(10am–4pm)</div>
                       <div class="mt-1 text-xs text-emerald-300">Base: <span x-text="money(dayBase)"></span></div>
                     </div>
                   </label>
-                  <label class="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-3 cursor-pointer flex items-start gap-2">
-                    <input type="radio" name="shift" value="night" x-model="shift" class="mt-1" @change="applyShiftTimes(true)">
+
+                  <label id="card-night" class="shift-card rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-3 cursor-pointer flex items-start gap-2">
+                    <input id="shift_night" type="radio" name="shift" value="night" x-model="shift" class="mt-1" @change="applyShiftTimes(true)">
                     <div>
                       <div class="font-medium">Nocturno</div>
                       <div class="text-xs text-slate-400">(7pm–2am)</div>
@@ -138,12 +143,12 @@
                     </div>
                   </label>
                 </div>
-                <p class="mt-1 text-xs text-slate-400">Los campos de hora se autollenan según el horario elegido. Puedes editarlos.</p>
+                <p class="mt-1 text-xs text-slate-400">Los campos de hora están fijos por turno.</p>
               </div>
             </div>
           </div>
 
-          {{-- Extras (sin cantidades) --}}
+          {{-- Extras (1 unidad por seleccionado) --}}
           <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div class="text-lg font-semibold">Servicios extra</div>
             <div class="mt-4 grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -249,9 +254,27 @@
       nightStart: '19:00',
       nightEnd:   '02:00',
 
+      // Ocupación por fecha
+      busyMap: {},          // { 'YYYY-MM-DD': ['day','night'] }
+      fullSet: new Set(),   // dias con ambos turnos ocupados
+
       init(){
         this.applyShiftTimes(true);
         this.initDatepicker();
+        this.lockTimeInputs();
+      },
+
+      lockTimeInputs(){
+        const st = document.getElementById('start_time');
+        const et = document.getElementById('end_time');
+        if (!st || !et) return;
+        st.readOnly = true; et.readOnly = true;
+        st.classList.add('readonly-time'); et.classList.add('readonly-time');
+        // Evitar teclado / rueda / mouse en pickers
+        ['keydown','wheel','mousedown','focus','click'].forEach(evt => {
+          st.addEventListener(evt, e => e.preventDefault(), {passive:false});
+          et.addEventListener(evt, e => e.preventDefault(), {passive:false});
+        });
       },
 
       applyShiftTimes(force = false){
@@ -262,10 +285,47 @@
         const s = (this.shift === 'day') ? this.dayStart : this.nightStart;
         const e = (this.shift === 'day') ? this.dayEnd   : this.nightEnd;
 
-        if (force || (!st.value && !et.value)) {
+        if (force || true) {
           st.value = s;
           et.value = e;
         }
+      },
+
+      updateShiftCardsFor(dateYmd){
+        const turnsBusy = this.busyMap?.[dateYmd] || [];
+        const dayBusy   = turnsBusy.includes('day');
+        const nightBusy = turnsBusy.includes('night');
+
+        const cardDay     = document.getElementById('card-day');
+        const cardNight   = document.getElementById('card-night');
+        const inputDay    = document.getElementById('shift_day');
+        const inputNight  = document.getElementById('shift_night');
+
+        // Ocultar / mostrar tarjetas según ocupación
+        if (cardDay) {
+          cardDay.classList.toggle('hidden-card', dayBusy);
+          cardDay.setAttribute('aria-disabled', dayBusy ? 'true' : 'false');
+        }
+        if (cardNight) {
+          cardNight.classList.toggle('hidden-card', nightBusy);
+          cardNight.setAttribute('aria-disabled', nightBusy ? 'true' : 'false');
+        }
+
+        // Deshabilitar radios ocupados
+        if (inputDay)   inputDay.disabled   = !!dayBusy;
+        if (inputNight) inputNight.disabled = !!nightBusy;
+
+        // Seleccionar automáticamente turno disponible
+        if (dayBusy && !nightBusy) {
+          this.shift = 'night';
+          if (inputNight) inputNight.checked = true;
+        } else if (!dayBusy && nightBusy) {
+          this.shift = 'day';
+          if (inputDay) inputDay.checked = true;
+        } // si ambos libres, no cambiamos; si ambos ocupados, el día estará deshabilitado en el calendario
+
+        // Aplicar horas fijas del turno vigente
+        this.applyShiftTimes(true);
       },
 
       async initDatepicker(){
@@ -280,6 +340,10 @@
           data = await res.json();
         } catch (_) {}
 
+        // Cargar mapas de ocupación
+        this.busyMap = (data.busy && typeof data.busy === 'object') ? data.busy : {};
+        this.fullSet = new Set(Array.isArray(data.full) ? data.full : []);
+
         function parseYmd(s) {
           if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
           const [Y,M,D] = s.split('-').map(Number);
@@ -290,7 +354,6 @@
         const minDaysAhead = Number(data.min_days_ahead ?? 8);
         const minDate      = new Date(todayServer.getFullYear(), todayServer.getMonth(), todayServer.getDate() + minDaysAhead);
 
-        const reservedSet = new Set(Array.isArray(data.reserved) ? data.reserved : []);
         const ymdKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
         flatpickr.localize(flatpickr.l10ns.es);
@@ -303,24 +366,30 @@
           disableMobile: true,
           defaultDate: null,
           minDate,
-          disable: [ (date) => date < minDate || reservedSet.has(ymdKey(date)) ],
-          onDayCreate(_, __, instance, dayElem) {
+          // Deshabilitar solo los días FULL (ambos turnos ocupados) y los anteriores al minDate
+          disable: [ (date) => date < minDate || this.fullSet.has(ymdKey(date)) ],
+          onDayCreate: (_, __, instance, dayElem) => {
             const d = dayElem.dateObj;
             const key = ymdKey(d);
             if (!instance.isEnabled(d)) {
-              dayElem.classList.add(reservedSet.has(key) ? 'fp-busy' : 'fp-muted', 'flatpickr-disabled');
+              dayElem.classList.add(this.fullSet.has(key) ? 'fp-busy' : 'fp-muted', 'flatpickr-disabled');
               dayElem.setAttribute('aria-disabled','true');
               return;
             }
             dayElem.classList.add('fp-free');
           },
-          onChange(selectedDates, dateStr) {
+          onReady: (selectedDates, dateStr) => {
+            if (dateStr) this.updateShiftCardsFor(dateStr);
+          },
+          onChange: (selectedDates, dateStr) => {
             inputISO.value = dateStr || '';
+            if (dateStr) this.updateShiftCardsFor(dateStr);
           }
         });
 
         const form = document.querySelector('form[x-ref="form"]') || document.querySelector('form');
         form?.addEventListener('submit', (ev) => {
+          // Normalizar ISO
           if (fp && fp.selectedDates && fp.selectedDates[0]) {
             inputISO.value = fp.formatDate(fp.selectedDates[0], 'Y-m-d');
           }
@@ -334,8 +403,11 @@
             inputDisplay.focus();
             return false;
           }
-          const scope2 = Alpine && Alpine.$data ? Alpine.$data(form.closest('[x-data]')) : null;
-          if (scope2) scope2.submitting = true;
+
+          // Forzar horas del turno seleccionado (por si el navegador ignora readonly)
+          this.applyShiftTimes(true);
+
+          this.submitting = true;
         });
       },
 

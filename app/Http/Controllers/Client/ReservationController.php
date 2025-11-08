@@ -24,7 +24,7 @@ class ReservationController extends Controller
     /** Anticipación estricta: primer día válido es hoy + 8 */
     private const MIN_DAYS_AHEAD  = 8;
 
-    /** Estados que bloquean el día completo del salón */
+    /** Estados que bloquean el día/turno */
     private function blockingStatuses(): array
     {
         return [
@@ -63,73 +63,42 @@ class ReservationController extends Controller
         $u  = $request->user();
         $tz = config('app.timezone');
 
-        // ====== LOG: payload entrante ======
+        // ====== Parseo robusto de fecha ======
         $raw = (string) $request->input('date'); // debe venir en Y-m-d
-        if (config('app.debug')) {
-            Log::debug('RC.store: incoming payload', [
-                'date_raw' => $raw,
-                'len'      => strlen($raw),
-                'hex'      => bin2hex($raw),
-                'payload'  => $request->except(['_token']),
-            ]);
-        }
-
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
-            Log::warning('RC.store: date no regex Y-m-d', ['raw' => $raw, 'hex'=>bin2hex($raw)]);
             return back()->withInput()->with('error', 'Fecha inválida (formato). Selecciona una fecha del calendario.');
         }
 
-        // ====== Parseo robusto de fecha ======
         try {
-            $parsed = Carbon::createFromFormat('Y-m-d', $raw, $tz);
-            if ($parsed === false) {
-                Log::warning('RC.store: Carbon::createFromFormat=false', ['raw'=>$raw]);
-                return back()->withInput()->with('error', 'Fecha inválida. Selecciona desde el calendario.');
-            }
-            $date = $parsed->copy()->startOfDay();
+            $date = Carbon::createFromFormat('Y-m-d', $raw, $tz)->startOfDay();
         } catch (\Throwable $e) {
-            Log::error('RC.store: excepción al parsear', ['raw'=>$raw,'hex'=>bin2hex($raw),'err'=>$e->getMessage()]);
             return back()->withInput()->with('error', 'Fecha inválida.');
         }
 
         $today = Carbon::today($tz);
         $min   = $today->copy()->addDays(self::MIN_DAYS_AHEAD)->startOfDay();
-
-        if (config('app.debug')) {
-            Log::debug('RC.store: comparación de fechas', [
-                'parsed_date' => $date->toDateString(),
-                'today'       => $today->toDateString(),
-                'min_allowed' => $min->toDateString(),
-            ]);
-        }
-
         if ($date->lt($min)) {
             $minText = $min->format('d/m/Y');
-            Log::info('RC.store: fecha < min', ['date'=>$date->toDateString(),'min'=>$min->toDateString()]);
             return back()->withInput()->with('error', "La fecha debe reservarse con al menos 7 días de anticipación. Primer día disponible: {$minText}.");
         }
 
-        // ====== Ocupación del día ======
-        $busyQuery = Reservation::query()
+        // ====== Ocupación por turno ======
+        $shift = (string) $request->input('shift'); // 'day' | 'night'
+
+        $turnBusy = Reservation::query()
             ->whereDate('date', $date->toDateString())
-            ->whereIn('status', $this->blockingStatuses());
+            ->where('shift', $shift)
+            ->whereIn('status', $this->blockingStatuses())
+            ->exists();
 
-        $isBusy = $busyQuery->exists();
-
-        if (config('app.debug')) {
-            Log::debug('RC.store: ocupación', [
-                'date'       => $date->toDateString(),
-                'busy_count' => (clone $busyQuery)->count(),
-                'is_busy'    => $isBusy,
-            ]);
-        }
-
-        if ($isBusy) {
-            return back()->withInput()->with('error', 'La fecha seleccionada ya está ocupada.');
+        if ($turnBusy) {
+            $msg = $shift === 'day'
+                ? 'El turno de día ya está ocupado para esa fecha.'
+                : 'El turno de noche ya está ocupado para esa fecha.';
+            return back()->withInput()->with('error', $msg);
         }
 
         // ====== Cálculos de precio ======
-        $shift = (string) $request->input('shift');
         $base  = $shift === 'day' ? self::DAY_BASE : self::NIGHT_BASE;
 
         $extrasInput = collect($request->input('extras', []))
@@ -163,40 +132,33 @@ class ReservationController extends Controller
         $discount = (float)($request->input('discount_amount') ?: 0);
         $total    = max(0, $base + $extrasTotal - $discount);
 
-        if (config('app.debug')) {
-            Log::debug('RC.store: montos', [
-                'shift'        => $shift,
-                'base'         => $base,
-                'extras_total' => $extrasTotal,
-                'discount'     => $discount,
-                'total'        => $total,
-                'extras_input' => $extrasInput,
-            ]);
-        }
-
         // ===== Persistencia =====
         $reservation = null;
         $payment     = null;
 
-        DB::transaction(function () use ($request, $u, $base, $discount, $total, $pivotData, $date, &$reservation, &$payment) {
+        DB::transaction(function () use ($request, $u, $base, $discount, $total, $pivotData, $date, $shift, &$reservation, &$payment) {
 
-            // ⚠️ OBTENER ENUM CORRECTO DESDE EL REQUEST
             $sourceEnum = $request->enum('source', ReservationSource::class) ?? ReservationSource::OTHER;
+
+            // Horas fijas por turno (se ignoran las que vengan del formulario)
+            [$start, $end] = $shift === 'day'
+                ? ['10:00', '16:00']
+                : ['19:00', '02:00'];
 
             $reservation = Reservation::create([
                 'user_id'         => $u->id,
                 'event_name'      => (string) $request->input('event_name'),
                 'date'            => $date,
-                'shift'           => (string) $request->input('shift'),
-                'start_time'      => (string) $request->input('start_time'),
-                'end_time'        => (string) $request->input('end_time'),
+                'shift'           => $shift,
+                'start_time'      => $start,
+                'end_time'        => $end,
                 'headcount'       => (int) $request->input('headcount'),
                 'status'          => ReservationStatus::PENDING,
                 'base_price'      => $base,
                 'discount_amount' => $discount,
                 'total_amount'    => $total,
                 'balance_amount'  => $total,
-                'source'          => $sourceEnum, // ✅ enum real, no Stringable
+                'source'          => $sourceEnum,
                 'notes'           => (string) $request->input('notes'),
             ]);
 
@@ -214,19 +176,12 @@ class ReservationController extends Controller
             ]);
         });
 
-        if (config('app.debug')) {
-            Log::debug('RC.store: creados', [
-                'reservation_id' => $reservation?->id,
-                'payment_id'     => $payment?->id,
-            ]);
-        }
-
         return redirect()
             ->route('client.payments.proof', $reservation)
             ->with('success', '¡Reserva creada! Ahora elige tu método de pago y sube tu comprobante.');
     }
 
-    /** Detalle de una reserva */
+    /** Detalle */
     public function show(Reservation $reservation): View
     {
         $this->authorize('view', $reservation);
@@ -234,25 +189,48 @@ class ReservationController extends Controller
         return view('client.reservations.show', compact('reservation'));
     }
 
-    /** === API: fechas ocupadas para el datepicker === */
+    /**
+     * === API: fechas/turnos ocupados para el datepicker ===
+     * Respuesta:
+     * {
+     *   "today":"YYYY-MM-DD",
+     *   "min_days_ahead":8,
+     *   "busy": { "YYYY-MM-DD":["day","night"], ... },
+     *   "full": ["YYYY-MM-DD", ...]
+     * }
+     */
     public function bookedDates(Request $request)
     {
         $tz = config('app.timezone');
         $today = Carbon::today($tz);
 
-        $dates = Reservation::query()
+        $rows = Reservation::query()
             ->whereDate('date', '>=', $today->toDateString())
             ->whereIn('status', $this->blockingStatuses())
-            ->pluck('date')
-            ->map(fn($d) => Carbon::parse($d, $tz)->toDateString())
-            ->unique()
-            ->values()
-            ->all();
+            ->get(['date','shift']);
+
+        $busy = [];
+        foreach ($rows as $r) {
+            $d = Carbon::parse($r->date, $tz)->toDateString();
+            $busy[$d] = $busy[$d] ?? [];
+            if (!in_array($r->shift, $busy[$d], true)) {
+                $busy[$d][] = $r->shift; // 'day' o 'night'
+            }
+        }
+
+        $full = [];
+        foreach ($busy as $d => $turns) {
+            sort($turns);
+            if ($turns === ['day','night']) {
+                $full[] = $d;
+            }
+        }
 
         return response()->json([
             'today'          => $today->toDateString(),
             'min_days_ahead' => self::MIN_DAYS_AHEAD,
-            'reserved'       => $dates,
+            'busy'           => $busy,
+            'full'           => $full,
         ]);
     }
 }

@@ -18,7 +18,7 @@ class AuthenticatedSessionController extends Controller
     public function create(Request $request): View
     {
         if ($next = $request->query('next')) {
-            // Guardamos la URL a la que queremos volver tras login
+            // Guardamos la URL a la que queremos volver tras login (solo si viene explícita)
             $request->session()->put('url.intended', $next);
         }
         return view('auth.login', ['next' => $request->query('next')]);
@@ -35,24 +35,34 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         // Bloquear a VALIDATOR
-        if ($user->role === UserRole::VALIDATOR || $user->role === 'validator') {
+        if (($user->role instanceof UserRole && $user->role === UserRole::VALIDATOR) || $user->role === 'validator') {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             return back()->withErrors([
                 'email' => 'Tu cuenta de validador no tiene acceso a la aplicación web.',
-            ]);
+            ])->onlyInput('email');
         }
 
-        // Fallback según rol, pero respetando la URL intended (si existe)
-        $fallback = match ($user->role) {
-            UserRole::ADMIN    => route('admin.dashboard', absolute: false),
-            UserRole::CUSTOMER => route('client.dashboard', absolute: false),
-            default            => route('dashboard', absolute: false),
-        };
+        $isAdmin = ($user->role instanceof UserRole && $user->role === UserRole::ADMIN) || $user->role === 'admin';
 
-        return redirect()->intended($fallback);
+        if ($isAdmin) {
+            // ⚠️ IMPORTANTE: ignorar cualquier intended previo y limpiar la sesión
+            $request->session()->forget('url.intended');
+            return redirect()->to(route('admin.dashboard', absolute: false));
+        }
+
+        // Cliente (u otro rol permitido):
+        // Respetar "intended" solo si es una URL interna hacia /client/*
+        $intended = $request->session()->pull('url.intended');
+        $path = $intended ? (parse_url($intended, PHP_URL_PATH) ?? '') : '';
+        if ($intended && str_starts_with($path, '/client')) {
+            return redirect()->to($intended);
+        }
+
+        // Fallback: al home (welcome). Ya NO mandamos a client.dashboard.
+        return redirect()->to(route('home', absolute: false));
     }
 
     /**

@@ -1,10 +1,21 @@
-{{-- resources/views/welcome.blade.php --}}
 @php
-  $isAuth  = auth()->check();
-  $nextUrl = route('client.reservations.create');
-  $loginUrl = route('login', ['next' => $nextUrl]);
-  $registerUrl = route('register', ['next' => $nextUrl]);
-  $ctaUrl = $isAuth ? $nextUrl : $loginUrl;
+  use App\Enums\UserRole;
+
+  $me      = auth()->user();
+  $isAuth  = (bool) $me;
+  $isAdmin = $me && (
+      ($me->role instanceof UserRole && $me->role === UserRole::ADMIN) || $me->role === 'admin'
+  );
+
+  $clientCreate = route('client.reservations.create');
+
+  // CTA principal del hero/tabla:
+  // - Invitado: login con next a crear reserva
+  // - Cliente:  directo a crear reserva
+  // - Admin:    dashboard admin (no debe ir a client)
+  $ctaUrl = $isAuth
+      ? ($isAdmin ? route('admin.dashboard') : $clientCreate)
+      : route('login', ['next' => $clientCreate]);
 @endphp
 <!DOCTYPE html>
 <html lang="es" class="h-full scroll-smooth">
@@ -36,33 +47,8 @@
 </head>
 <body class="min-h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
 
-  {{-- ====== Navbar público ====== --}}
-  <header class="sticky top-0 z-50 border-b border-white/10 bg-slate-950/70 backdrop-blur">
-    <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <a href="{{ route('home') }}" class="flex items-center gap-3 group">
-        <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[--brand] text-white shadow">
-          <svg viewBox="0 0 24 24" class="h-5 w-5"><path fill="currentColor" d="M12 2l7 4v6c0 5-3 8-7 10C8 20 5 17 5 12V6l7-4zM7 8v4c0 3 2 5 5 6c3-1 5-3 5-6V8l-5-3l-5 3z"/></svg>
-        </span>
-        <div class="leading-tight">
-          <div class="font-semibold -mb-1">Salón de eventos el Polvorín</div>
-          <div class="text-xs text-slate-400">Reservaciones & QR</div>
-        </div>
-      </a>
-
-      <div class="flex items-center gap-2">
-        <a href="#precios" class="px-3 py-2 text-sm rounded-md hover:bg-white/5">Precios</a>
-        <a href="#extras"  class="px-3 py-2 text-sm rounded-md hover:bg-white/5">Servicios extra</a>
-        <a href="#faq"     class="px-3 py-2 text-sm rounded-md hover:bg-white/5">FAQ</a>
-
-        @if($isAuth)
-          <a href="{{ route('client.dashboard') }}" class="ml-2 px-3 py-2 text-sm rounded-md bg-white/10 hover:bg-white/20">Mi panel</a>
-        @else
-          <a href="{{ $loginUrl }}" class="ml-2 px-3 py-2 text-sm rounded-md bg-white/10 hover:bg-white/20">Ingresar</a>
-          <a href="{{ $registerUrl }}" class="px-3 py-2 text-sm rounded-md bg-[--brand] hover:bg-[--brand]/90 text-white">Crear cuenta</a>
-        @endif
-      </div>
-    </nav>
-  </header>
+  {{-- ===== Navbar global (usa resources/views/layouts/navigation.blade.php) ===== --}}
+  @include('layouts.navigation')
 
   {{-- ====== Hero ====== --}}
   <section class="relative overflow-hidden">
@@ -181,12 +167,7 @@
       </div>
 
       <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        @foreach ([
-          ['Decoración temática', 'Ambientación base incluida'],
-          ['Cabina 360', 'Clips listos para compartir'],
-          ['Pantalla y audio', 'Presentaciones y música'],
-          ['Impresión de gafetes', 'Identificación por rol']
-        ] as [$title, $desc])
+        @foreach ([['Decoración temática','Ambientación base incluida'],['Cabina 360','Clips listos para compartir'],['Pantalla y audio','Presentaciones y música'],['Impresión de gafetes','Identificación por rol']] as [$title,$desc])
           <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div class="text-lg font-semibold">{{ $title }}</div>
             <div class="mt-1 text-sm text-slate-400">{{ $desc }}</div>
@@ -203,11 +184,7 @@
     <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
       <h2 class="text-3xl sm:text-4xl font-bold text-center">Preguntas frecuentes</h2>
       <div class="mt-8 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/5">
-        @foreach ([
-          ['¿Necesito cuenta para reservar?', 'Puedes ver precios sin cuenta. Al confirmar, te pediremos registrarte o iniciar sesión.'],
-          ['¿Cómo funciona el acceso con QR?', 'Cada invitado recibe un código único. En la entrada se valida en segundos para evitar duplicados.'],
-          ['¿Puedo cambiar mi horario?', 'Sí, sujeto a disponibilidad y políticas vigentes.']
-        ] as [$q,$a])
+        @foreach ([['¿Necesito cuenta para reservar?','Puedes ver precios sin cuenta. Al confirmar, te pediremos registrarte o iniciar sesión.'],['¿Cómo funciona el acceso con QR?','Cada invitado recibe un código único. En la entrada se valida en segundos para evitar duplicados.'],['¿Puedo cambiar mi horario?','Sí, sujeto a disponibilidad y políticas vigentes.']] as [$q,$a])
           <details class="group open:bg-white/5 p-5">
             <summary class="cursor-pointer list-none font-medium flex items-center justify-between">
               <span>{{ $q }}</span>
