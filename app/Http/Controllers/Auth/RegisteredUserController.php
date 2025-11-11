@@ -42,20 +42,24 @@ class RegisteredUserController extends Controller
 
         // Registro público -> rol por defecto: CUSTOMER
         $user = User::create([
-            'full_name' => $request->string('full_name'),
-            'email'     => $request->string('email'),
-            'phone'     => $request->string('phone'),
+            'full_name' => (string) $request->string('full_name'),
+            'email'     => (string) $request->string('email'),
+            'phone'     => (string) $request->string('phone'),
             'role'      => UserRole::CUSTOMER,
-            'password'  => Hash::make($request->string('password')),
+            'password'  => Hash::make((string) $request->string('password')),
         ]);
 
         event(new Registered($user));
-
         Auth::login($user);
 
-        // Fallback de seguridad: si no hay intended, ve al dashboard cliente
-        $fallback = route('client.dashboard', absolute: false);
+        // Respetar "intended" solo si apunta a /client/*
+        $intended = $request->session()->pull('url.intended');
+        $path     = $intended ? (parse_url($intended, PHP_URL_PATH) ?? '') : '';
+        if ($intended && str_starts_with($path, '/client')) {
+            return redirect()->to($intended);
+        }
 
-        return redirect()->intended($fallback);
+        // Fallback: Home (ya no mandamos a client.dashboard)
+        return redirect()->to(route('home', absolute: false));
     }
 }
