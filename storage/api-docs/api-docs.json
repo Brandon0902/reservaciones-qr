@@ -149,6 +149,139 @@
                     }
                 ]
             }
+        },
+        "/validator/tickets/scan": {
+            "post": {
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Escaneo/validación de boleto por token (QR)",
+                "description": "Busca el boleto por token. Si está UNUSED y es válido, lo marca como USED y devuelve su estado e id de mesa.",
+                "operationId": "94fa0d39dd5ed3b613fdc2c58ac50ac8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "token"
+                                ],
+                                "properties": {
+                                    "token": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "35be6a8c-4b8c-4a7a-a8a7-7d9b7b4f3b19"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "changed": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "unused",
+                                                "used",
+                                                "expired",
+                                                "canceled"
+                                            ],
+                                            "example": "used"
+                                        },
+                                        "id_mesa": {
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "used_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2025-11-10T01:23:45Z",
+                                            "nullable": true
+                                        },
+                                        "ticket_id": {
+                                            "type": "integer",
+                                            "example": 128
+                                        },
+                                        "reservation_id": {
+                                            "type": "integer",
+                                            "example": 77
+                                        },
+                                        "event_name": {
+                                            "type": "string",
+                                            "example": "XV Años Camila"
+                                        },
+                                        "date": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "example": "2025-11-20"
+                                        },
+                                        "shift": {
+                                            "type": "string",
+                                            "example": "night"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Boleto validado y marcado como usado."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Boleto no encontrado."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The token field must be a valid UUID."
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -324,6 +457,10 @@
         {
             "name": "Auth",
             "description": "Auth"
+        },
+        {
+            "name": "Validator",
+            "description": "Validator"
         }
     ],
     "security": [
