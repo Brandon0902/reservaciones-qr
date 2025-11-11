@@ -45,8 +45,9 @@
         </div>
 
         <div class="flex items-center justify-between mt-6">
-            <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-               href="{{ route('login', request()->only('next')) }}">
+            <a class="underline text-sm text-white dark:text-white hover:text-indigo-300
+                    focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded-md"
+            href="{{ route('login', request()->only('next')) }}">
                 ¿Ya tienes cuenta? Inicia sesión
             </a>
 
