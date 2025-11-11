@@ -5,14 +5,15 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Mass-assignable attributes.
@@ -51,6 +52,22 @@ class User extends Authenticatable
         ];
     }
 
+    /* ========= Accessors / Helpers ========= */
+
+    /**
+     * Compat: muchos controladores/JSON usan "name".
+     * Devolvemos full_name como "name".
+     */
+    public function getNameAttribute(): ?string
+    {
+        return $this->attributes['full_name'] ?? null;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::ADMIN;
+    }
+
     /* ========= Relaciones ========= */
 
     public function reservations(): HasMany
@@ -61,12 +78,5 @@ class User extends Authenticatable
     public function approvedPayments(): HasMany
     {
         return $this->hasMany(Payment::class, 'approved_by');
-    }
-
-    /* ========== Helpers ========== */
-
-    public function isAdmin(): bool
-    {
-        return $this->role === UserRole::ADMIN;
     }
 }
