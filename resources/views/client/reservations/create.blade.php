@@ -117,8 +117,21 @@
               </div>
               <div>
                 <x-input-label for="headcount" value="No. de personas" class="text-slate-300" />
-                <x-text-input id="headcount" name="headcount" type="number" min="1"
-                              class="mt-1 block w-full dark:bg-slate-900/40" required />
+                <x-text-input id="headcount"
+                              name="headcount"
+                              type="number"
+                              min="1"
+                              max="70"
+                              step="1"
+                              inputmode="numeric"
+                              class="mt-1 block w-full dark:bg-slate-900/40"
+                              required
+                              x-ref="headcount"
+                              @keydown="blockInvalidNumberKeys($event)"
+                              @input="validateHeadcount()"
+                              @paste.prevent />
+                <p class="mt-1 text-xs text-rose-300" x-show="headcountError" x-text="headcountError"></p>
+                <small class="text-slate-400 text-xs">Capacidad máxima: 70 personas.</small>
               </div>
 
               {{-- Horario (turno) --}}
@@ -247,6 +260,7 @@
       submitting: false,
       clientError: '',
       pickableExtras: extras.map(e => ({...e, checked: false})),
+      headcountError: '', // ← nuevo estado
 
       // Horarios por defecto
       dayStart:   '10:00',
@@ -262,6 +276,7 @@
         this.applyShiftTimes(true);
         this.initDatepicker();
         this.lockTimeInputs();
+        this.validateHeadcount(); // ← valida al iniciar
       },
 
       lockTimeInputs(){
@@ -270,7 +285,6 @@
         if (!st || !et) return;
         st.readOnly = true; et.readOnly = true;
         st.classList.add('readonly-time'); et.classList.add('readonly-time');
-        // Evitar teclado / rueda / mouse en pickers
         ['keydown','wheel','mousedown','focus','click'].forEach(evt => {
           st.addEventListener(evt, e => e.preventDefault(), {passive:false});
           et.addEventListener(evt, e => e.preventDefault(), {passive:false});
@@ -301,7 +315,6 @@
         const inputDay    = document.getElementById('shift_day');
         const inputNight  = document.getElementById('shift_night');
 
-        // Ocultar / mostrar tarjetas según ocupación
         if (cardDay) {
           cardDay.classList.toggle('hidden-card', dayBusy);
           cardDay.setAttribute('aria-disabled', dayBusy ? 'true' : 'false');
@@ -311,20 +324,17 @@
           cardNight.setAttribute('aria-disabled', nightBusy ? 'true' : 'false');
         }
 
-        // Deshabilitar radios ocupados
         if (inputDay)   inputDay.disabled   = !!dayBusy;
         if (inputNight) inputNight.disabled = !!nightBusy;
 
-        // Seleccionar automáticamente turno disponible
         if (dayBusy && !nightBusy) {
           this.shift = 'night';
           if (inputNight) inputNight.checked = true;
         } else if (!dayBusy && nightBusy) {
           this.shift = 'day';
           if (inputDay) inputDay.checked = true;
-        } // si ambos libres, no cambiamos; si ambos ocupados, el día estará deshabilitado en el calendario
+        }
 
-        // Aplicar horas fijas del turno vigente
         this.applyShiftTimes(true);
       },
 
@@ -340,7 +350,6 @@
           data = await res.json();
         } catch (_) {}
 
-        // Cargar mapas de ocupación
         this.busyMap = (data.busy && typeof data.busy === 'object') ? data.busy : {};
         this.fullSet = new Set(Array.isArray(data.full) ? data.full : []);
 
@@ -366,7 +375,6 @@
           disableMobile: true,
           defaultDate: null,
           minDate,
-          // Deshabilitar solo los días FULL (ambos turnos ocupados) y los anteriores al minDate
           disable: [ (date) => date < minDate || this.fullSet.has(ymdKey(date)) ],
           onDayCreate: (_, __, instance, dayElem) => {
             const d = dayElem.dateObj;
@@ -389,7 +397,6 @@
 
         const form = document.querySelector('form[x-ref="form"]') || document.querySelector('form');
         form?.addEventListener('submit', (ev) => {
-          // Normalizar ISO
           if (fp && fp.selectedDates && fp.selectedDates[0]) {
             inputISO.value = fp.formatDate(fp.selectedDates[0], 'Y-m-d');
           }
@@ -404,11 +411,48 @@
             return false;
           }
 
-          // Forzar horas del turno seleccionado (por si el navegador ignora readonly)
-          this.applyShiftTimes(true);
+          // Validar número de personas antes de enviar
+          this.validateHeadcount();
+          const head = this.$refs.headcount;
+          if (this.headcountError || !head || !head.checkValidity()) {
+            ev.preventDefault();
+            head?.reportValidity?.();
+            head?.focus?.();
+            return false;
+          }
 
+          this.applyShiftTimes(true);
           this.submitting = true;
         });
+      },
+
+      // Bloquea teclas inválidas para campo numérico
+      blockInvalidNumberKeys(e) {
+        const bad = ['e','E','+','-','.'];
+        if (bad.includes(e.key)) e.preventDefault();
+      },
+
+      // Valida rango permitido para número de personas
+      validateHeadcount() {
+        const el = this.$refs.headcount;
+        if (!el) return;
+        const v = Number(el.value);
+
+        if (!Number.isFinite(v) || el.value === '') {
+          this.headcountError = 'Ingresa un número válido.';
+        } else if (v < 1) {
+          this.headcountError = 'El mínimo es 1 persona.';
+        } else if (v > 70) {
+          this.headcountError = 'No se permite más de 70 personas por capacidad del salón.';
+        } else {
+          this.headcountError = '';
+        }
+
+        if (this.headcountError) {
+          el.setCustomValidity(this.headcountError);
+        } else {
+          el.setCustomValidity('');
+        }
       },
 
       // Cálculos
@@ -426,5 +470,6 @@
       recalc(){},
     }
   }
-  </script>
+</script>
+
 </x-app-layout>

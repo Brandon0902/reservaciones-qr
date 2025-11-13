@@ -47,38 +47,62 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/dashboard', fn () => view('client.dashboard'))->name('dashboard');
 
-        // === Mis reservaciones & boletos (AGRUPADOS por mesa)
+        // === Mis reservaciones
         Route::get('/reservations', [MyReservationsController::class, 'index'])
             ->name('reservations.my');
 
-        // ÚNICA ruta válida para ver boletos de una reservación
+        // Ver boletos de una reservación (agrupados por mesa)
         Route::get('/reservations/{reservation}/tickets', [MyReservationsController::class, 'tickets'])
+            ->whereNumber('reservation')
             ->name('reservations.tickets');
 
-        // ---------- DISPONIBILIDAD PARA DATEPICKER (ANTES de las rutas con {reservation}) ----------
-        // Evita que el middleware de “pago pendiente” redirija esta llamada JSON
+        // ---------- DISPONIBILIDAD PARA DATEPICKER ----------
         Route::get('/reservations/booked-dates', [ReservationController::class, 'bookedDates'])
             ->name('reservations.booked-dates')
             ->withoutMiddleware('force.payment.proof');
 
-        // (Opcional y recomendado) fuerza que {reservation} sea numérico
-        Route::pattern('reservation', '[0-9]+');
+        // Crear / ver una reservación
+        Route::get('/reservations/create', [ReservationController::class, 'create'])
+            ->name('reservations.create');
+        Route::post('/reservations', [ReservationController::class, 'store'])
+            ->name('reservations.store');
+        Route::get('/reservations/{reservation}', [ReservationController::class, 'show'])
+            ->whereNumber('reservation')
+            ->name('reservations.show');
 
-        // === Crear / ver una reservación
-        Route::get('/reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
-        Route::post('/reservations',        [ReservationController::class, 'store'])->name('reservations.store');
-        Route::get('/reservations/{reservation}', [ReservationController::class, 'show'])->name('reservations.show');
+        // Boletos individuales (vista/descarga existentes)
+        Route::get('/tickets/{ticket}', [TicketController::class, 'show'])
+            ->whereNumber('ticket')
+            ->name('tickets.show');
+        Route::get('/tickets/{ticket}/download', [TicketController::class, 'download'])
+            ->whereNumber('ticket')
+            ->name('tickets.download');
 
-        // === Boletos individuales (ver/descargar)
-        Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
-        Route::get('/tickets/{ticket}/download', [TicketController::class, 'download'])->name('tickets.download');
+        // === NUEVO: Vista imprimible (la que abre diálogo para Guardar como PDF)
+        Route::get('/reservations/{reservation}/tickets/{ticket}/print', [MyReservationsController::class, 'print'])
+            ->whereNumber('reservation')
+            ->whereNumber('ticket')
+            ->name('tickets.print');
 
-        // === Pago (comprobante del cliente)
+        // (Opcional) Alias de compatibilidad: si aún usas "pdf" en algún lugar, envía a print
+        Route::get('/reservations/{reservation}/tickets/{ticket}/pdf', [MyReservationsController::class, 'pdf'])
+            ->whereNumber('reservation')
+            ->whereNumber('ticket')
+            ->name('tickets.pdf');
+
+        // Enviar por correo UN boleto (POST JSON desde modal)
+        Route::post('/tickets/email-one', [MyReservationsController::class, 'emailOne'])
+            ->name('tickets.email.one');
+
+        // Pago (comprobante del cliente)
         Route::get('/reservations/{reservation}/payment-proof',   [PaymentController::class, 'create'])
+            ->whereNumber('reservation')
             ->name('payments.proof');
         Route::post('/reservations/{reservation}/payment-proof',  [PaymentController::class, 'store'])
+            ->whereNumber('reservation')
             ->name('payments.proof.store');
         Route::get('/reservations/{reservation}/payment-confirmation', [PaymentController::class, 'confirmation'])
+            ->whereNumber('reservation')
             ->name('payments.confirmation');
     });
 
