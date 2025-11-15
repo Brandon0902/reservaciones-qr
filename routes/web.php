@@ -1,23 +1,28 @@
 <?php
 
+use App\Models\ExtraService;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 /* ===== Controllers ===== */
 use App\Http\Controllers\ProfileController;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Client\TicketController;
+use App\Http\Controllers\Client\PaymentController;
+
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ExtraServiceController;
-use App\Http\Controllers\Admin\PaymentApprovalController;
-
 use App\Http\Controllers\Client\ReservationController;
+use App\Http\Controllers\Admin\PaymentApprovalController;
 use App\Http\Controllers\Client\MyReservationsController;
-use App\Http\Controllers\Client\PaymentController;
-use App\Http\Controllers\Client\TicketController;
 
 /* ===== Público ===== */
-Route::get('/', fn () => view('welcome'))->name('home');
+Route::get('/', function () {
+    $extras = ExtraService::orderBy('name')->get();
+
+    return view('welcome', compact('extras'));
+})->name('home');
 
 Route::get('/qr-test', function () {
     $data = ['hello'=>'world','time'=>now()->toIso8601String()];
@@ -50,6 +55,11 @@ Route::middleware('auth')->group(function () {
         // === Mis reservaciones
         Route::get('/reservations', [MyReservationsController::class, 'index'])
             ->name('reservations.my');
+
+        Route::get('/reservations/{reservation}', [MYReservationsController::class, 'show'])
+            ->whereNumber('reservation')
+            ->name('reservations.show');
+
 
         // Ver boletos de una reservación (agrupados por mesa)
         Route::get('/reservations/{reservation}/tickets', [MyReservationsController::class, 'tickets'])

@@ -8,6 +8,12 @@
 
     <title>{{ config('app.name', 'Reservaciones & QR') }}</title>
 
+    {{-- Favicon Polvorín --}}
+    {{-- Asegúrate de tener: public/images/logo_polvorin.png --}}
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo_polvorin.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('images/logo_polvorin.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo_polvorin.png') }}">
+
     {{-- Fonts (Poppins para mantener el look) --}}
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -17,15 +23,18 @@
 
     <style>
       :root { --brand:#6d28d9; --brand-2:#a78bfa; }
-      html, body { font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
+      html, body {
+        font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto,
+          'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+      }
     </style>
   </head>
   <body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 antialiased">
 
-    {{-- Top navigation (ya la estilizamos antes) --}}
+    {{-- Top navigation --}}
     @include('layouts.navigation')
 
-    {{-- Header opcional (SIN fondo blanco) --}}
+    {{-- Header opcional --}}
     @if (isset($header))
       <header class="bg-transparent">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">

@@ -11,9 +11,11 @@
     {{-- Encabezado / Branding --}}
     <div class="text-center mb-6">
       <a href="{{ route('home') }}" class="inline-flex items-center gap-2">
-        <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#6d28d9] text-white shadow">
-          <svg viewBox="0 0 24 24" class="h-5 w-5"><path fill="currentColor" d="M12 2l7 4v6c0 5-3 8-7 10C8 20 5 17 5 12V6l7-4zM7 8v4c0 3 2 5 5 6c3-1 5-3 5-6V8l-5-3l-5 3z"/></svg>
-        </span>
+        <img
+          src="{{ asset('images/logo_polvorin.png') }}"
+          alt="Salón de eventos el Polvorín"
+          class="h-10 w-10 object-contain"
+        >
         <div class="text-left">
           <div class="font-semibold leading-tight">Salón de eventos el Polvorín</div>
           <div class="text-xs text-gray-500">Reservaciones & QR</div>
@@ -82,6 +84,7 @@
 
       {{-- CTA de registro (con next) --}}
       <a href="{{ route('register', request()->only('next')) }}"
+
          class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5
                 text-sm font-medium hover:bg-white/5 transition">
         ¿No tienes cuenta? <span class="font-semibold text-indigo-400">Registrarme ahora</span>
