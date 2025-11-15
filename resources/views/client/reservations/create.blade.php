@@ -2,10 +2,14 @@
   <x-slot name="header">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#6d28d9] text-white shadow">
-          <svg viewBox="0 0 24 24" class="h-5 w-5"><path fill="currentColor" d="M12 2l7 4v6c0 5-3 8-7 10C8 20 5 17 5 12V6l7-4zM7 8v4c0 3 2 5 5 6c3-1 5-3 5-6V8l-5-3l-5 3z"/></svg>
-        </span>
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-100">Crear reservación</h2>
+        <img
+          src="{{ asset('images/logo_polvorin.png') }}"
+          alt="Salón de eventos el Polvorín"
+          class="h-9 w-9 object-contain"
+        >
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-100">
+          Crear reservación
+        </h2>
       </div>
 
       <a href="{{ route('client.dashboard') }}"

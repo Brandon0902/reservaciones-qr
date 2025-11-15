@@ -158,7 +158,7 @@
     </div>
   </section>
 
-  {{-- ====== Extras (ilustrativo) ====== --}}
+    {{-- ====== Extras (ilustrativo) ====== --}}
   <section id="extras" class="py-16 sm:py-24 border-t border-white/10">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div class="text-center max-w-2xl mx-auto">
@@ -166,18 +166,48 @@
         <p class="mt-3 text-slate-400">Potencia tu experiencia con complementos opcionales.</p>
       </div>
 
-      <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        @foreach ([['Decoración temática','Ambientación base incluida'],['Cabina 360','Clips listos para compartir'],['Pantalla y audio','Presentaciones y música'],['Impresión de gafetes','Identificación por rol']] as [$title,$desc])
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div class="text-lg font-semibold">{{ $title }}</div>
-            <div class="mt-1 text-sm text-slate-400">{{ $desc }}</div>
-            <div class="mt-4 text-2xl font-extrabold">$ —</div>
-            <a href="{{ $ctaUrl }}" class="mt-4 inline-flex justify-center rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5 text-sm">Agregar al reservar</a>
-          </div>
-        @endforeach
-      </div>
+      @if(isset($extras) && $extras->count())
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          @foreach ($extras as $extra)
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div class="text-lg font-semibold">{{ $extra->name }}</div>
+
+              @if($extra->description)
+                <div class="mt-1 text-sm text-slate-400">
+                  {{ $extra->description }}
+                </div>
+              @endif
+
+              <div class="mt-4 text-sm text-slate-300 space-y-1">
+                <div>
+                  <span class="text-xs text-slate-400">Matutino</span><br>
+                  <span class="text-base font-extrabold">
+                    ${{ number_format($extra->day_price, 2) }} MXN
+                  </span>
+                </div>
+                <div>
+                  <span class="text-xs text-slate-400">Nocturno</span><br>
+                  <span class="text-base font-extrabold">
+                    ${{ number_format($extra->night_price, 2) }} MXN
+                  </span>
+                </div>
+              </div>
+
+              <a href="{{ $ctaUrl }}"
+                 class="mt-4 inline-flex justify-center rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5 text-sm">
+                Agregar al reservar
+              </a>
+            </div>
+          @endforeach
+        </div>
+      @else
+        <p class="mt-8 text-center text-sm text-slate-400">
+          Aún no hay servicios extra configurados. Pronto verás las opciones disponibles.
+        </p>
+      @endif
     </div>
   </section>
+
 
   {{-- ====== FAQ ====== --}}
   <section id="faq" class="py-16 sm:py-24 border-t border-white/10">

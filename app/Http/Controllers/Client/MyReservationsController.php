@@ -23,6 +23,20 @@ class MyReservationsController extends Controller
         return view('client.reservations.index', compact('rows'));
     }
 
+
+    public function show(Request $request, Reservation $reservation)
+    {
+        // Seguridad: que la reservación sea del cliente actual
+        abort_unless($reservation->user_id === $request->user()->id, 403);
+
+        // Cargamos servicios extra (y lo que quieras)
+        $reservation->load('extraServices');
+
+        return view('client.reservations.show', [
+            'reservation' => $reservation,
+        ]);
+    }
+
     public function tickets(Request $request, Reservation $reservation)
     {
         abort_unless($reservation->user_id === $request->user()->id, 403);

@@ -16,7 +16,7 @@ class Reservation extends Model
 
     protected $fillable = [
         'user_id',
-        'event_name',       // NUEVO
+        'event_name',       // nombre del evento
         'date',
         'shift',            // day | night
         'start_time',
@@ -28,7 +28,7 @@ class Reservation extends Model
         'discount_amount',
         'total_amount',
         'balance_amount',
-        'extra_service_id', // legacy, opcional
+        'extra_service_id', // legacy, opcional (un solo extra)
         'source',
         'notes',
     ];
@@ -41,17 +41,60 @@ class Reservation extends Model
     ];
 
     /* ========= Relaciones ========= */
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function extraService(): BelongsTo { return $this->belongsTo(ExtraService::class); }
 
-    /** Múltiples extras seleccionados en la reserva */
-    public function extras(): BelongsToMany
+    /** Cliente dueño de la reservación */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Extra "legacy" (una sola columna extra_service_id).
+     * Lo puedes ir eliminando cuando ya no lo uses.
+     */
+    public function extraService(): BelongsTo
+    {
+        return $this->belongsTo(ExtraService::class);
+    }
+
+    /**
+     * Relación base para múltiples servicios extra a través de la tabla pivote.
+     * Tabla pivote: reservation_extra_service
+     * Columnas pivote: reservation_id, extra_service_id, quantity, unit_price, total_price
+     */
+    protected function extraServicesRelation(): BelongsToMany
     {
         return $this->belongsToMany(ExtraService::class, 'reservation_extra_service')
-            ->withPivot(['quantity','unit_price','total_price'])
+            ->withPivot(['quantity', 'unit_price', 'total_price'])
             ->withTimestamps();
     }
 
-    public function payments(): HasMany { return $this->hasMany(Payment::class); }
-    public function tickets(): HasMany { return $this->hasMany(Ticket::class); }
+    /**
+     * Nombre "nuevo" que estamos usando en las vistas/controladores:
+     * $reservation->extraServices
+     */
+    public function extraServices(): BelongsToMany
+    {
+        return $this->extraServicesRelation();
+    }
+
+    /**
+     * Alias de compatibilidad si en algún lugar aún usas $reservation->extras
+     */
+    public function extras(): BelongsToMany
+    {
+        return $this->extraServicesRelation();
+    }
+
+    /** Pagos ligados a la reservación */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /** Boletos generados para la reservación */
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
 }

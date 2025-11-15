@@ -26,9 +26,15 @@
     <div class="flex justify-between h-16">
       <div class="flex items-center gap-8">
         <a href="{{ route('home') }}" class="flex items-center gap-3 group">
-          <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#6d28d9] text-white shadow">
-            <svg viewBox="0 0 24 24" class="h-5 w-5"><path fill="currentColor" d="M12 2l7 4v6c0 5-3 8-7 10C8 20 5 17 5 12V6l7-4zM7 8v4c0 3 2 5 5 6c3-1 5-3 5-6V8l-5-3l-5 3z"/></svg>
+          {{-- Logo en lugar del recuadro morado con la P --}}
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden">
+            <img
+              src="{{ asset('images/logo_polvorin.png') }}"
+              alt="Salón de eventos el Polvorín"
+              class="h-9 w-9 object-contain"
+            >
           </span>
+
           <div class="leading-tight">
             <div class="font-semibold -mb-1 text-slate-100">Salón de eventos el Polvorín</div>
             <div class="text-xs text-slate-400">Reservaciones &amp; QR</div>
@@ -42,8 +48,10 @@
         </div>
       </div>
 
+      {{-- Desktop derecha --}}
       <div class="hidden sm:flex items-center gap-3">
         @auth
+          {{-- Mis reservaciones solo para clientes, no admin --}}
           @unless($isAdmin)
             <a href="{{ route('client.reservations.my') }}"
                class="inline-flex items-center gap-2 rounded-xl border border-white/10 hover:bg-white/5 px-4 py-2 text-sm text-slate-200">
@@ -52,11 +60,15 @@
           @endunless
         @endauth
 
-        <a href="{{ $reserveUrl }}"
-           class="hidden md:inline-flex items-center gap-2 rounded-xl bg-[#6d28d9] hover:bg-[#6d28d9]/90 px-4 py-2 text-sm font-medium text-white">
-          Reservar
-        </a>
+        {{-- Botón Reservar: solo NO admin (clientes y visitantes) --}}
+        @unless($isAdmin)
+          <a href="{{ $reserveUrl }}"
+             class="hidden md:inline-flex items-center gap-2 rounded-xl bg-[#6d28d9] hover:bg-[#6d28d9]/90 px-4 py-2 text-sm font-medium text-white">
+            Reservar
+          </a>
+        @endunless
 
+        {{-- Contenedor con nombre y logout (para todos los autenticados, incluido admin) --}}
         @auth
           <div class="relative">
             <x-dropdown align="right" width="56">
@@ -91,6 +103,7 @@
         @endguest
       </div>
 
+      {{-- Botón hamburguesa móvil --}}
       <div class="-me-2 flex items-center sm:hidden">
         <button @click="open = ! open"
                 class="inline-flex items-center justify-center p-2 rounded-md text-slate-300 hover:text-white hover:bg-white/10 focus:outline-none transition">
@@ -107,6 +120,7 @@
     </div>
   </div>
 
+  {{-- Menú móvil --}}
   <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden border-t border-white/10 bg-slate-950/90 backdrop-blur">
     <div class="px-4 pt-3 pb-4 space-y-1">
       <a href="{{ route('home') }}#precios" class="block px-3 py-2 text-slate-300 hover:bg-white/5 rounded">Precios</a>
@@ -114,6 +128,7 @@
       <a href="{{ route('home') }}#faq"     class="block px-3 py-2 text-slate-300 hover:bg-white/5 rounded">FAQ</a>
 
       @auth
+        {{-- Mis reservaciones solo clientes --}}
         @unless($isAdmin)
           <a href="{{ route('client.reservations.my') }}" class="block px-3 py-2 text-slate-100 bg-white/5 hover:bg-white/10 rounded">
             Mis reservaciones
@@ -121,9 +136,12 @@
         @endunless
       @endauth
 
-      <a href="{{ $reserveUrl }}" class="block px-3 py-2 text-slate-100 bg-[#6d28d9]/80 hover:bg-[#6d28d9] rounded">
-        Reservar
-      </a>
+      {{-- Reservar solo para no admin (clientes y visitantes) --}}
+      @unless($isAdmin)
+        <a href="{{ $reserveUrl }}" class="block px-3 py-2 text-slate-100 bg-[#6d28d9]/80 hover:bg-[#6d28d9] rounded">
+          Reservar
+        </a>
+      @endunless
     </div>
 
     <div class="border-t border-white/10 px-4 py-3">
