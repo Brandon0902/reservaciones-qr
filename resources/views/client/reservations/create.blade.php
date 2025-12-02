@@ -124,7 +124,7 @@
                 <x-text-input id="headcount"
                               name="headcount"
                               type="number"
-                              min="1"
+                              min="10"
                               max="70"
                               step="1"
                               inputmode="numeric"
@@ -135,7 +135,7 @@
                               @input="validateHeadcount()"
                               @paste.prevent />
                 <p class="mt-1 text-xs text-rose-300" x-show="headcountError" x-text="headcountError"></p>
-                <small class="text-slate-400 text-xs">Capacidad máxima: 70 personas.</small>
+                <small class="text-slate-400 text-xs">Mínimo 10 personas. Capacidad máxima: 70 personas.</small>
               </div>
 
               {{-- Horario (turno) --}}
@@ -201,12 +201,6 @@
                   @endforeach
                 </select>
               </div>
-              <div>
-                <x-input-label for="discount_amount" value="Descuento (opcional)" class="text-slate-300" />
-                <x-text-input id="discount_amount" name="discount_amount" type="number" step="0.01" min="0"
-                              class="mt-1 block w-full dark:bg-slate-900/40"
-                              x-model.number="discount" @input="recalc()" />
-              </div>
               <div class="sm:col-span-2">
                 <x-input-label for="notes" value="Notas" class="text-slate-300" />
                 <textarea id="notes" name="notes" rows="3"
@@ -233,11 +227,19 @@
           <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div class="text-lg font-semibold">Resumen</div>
             <div class="mt-3 space-y-2 text-sm">
-              <div class="flex justify-between"><span class="text-slate-300">Base</span><span class="font-medium" x-text="money(base)"></span></div>
-              <div class="flex justify-between"><span class="text-slate-300">Extras</span><span class="font-medium" x-text="money(extras)"></span></div>
-              <div class="flex justify-between"><span class="text-slate-300">Descuento</span><span class="font-medium" x-text="money(discount)"></span></div>
+              <div class="flex justify-between">
+                <span class="text-slate-300">Base</span>
+                <span class="font-medium" x-text="money(base)"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-300">Extras</span>
+                <span class="font-medium" x-text="money(extras)"></span>
+              </div>
               <div class="h-px my-2 bg-white/10"></div>
-              <div class="flex justify-between text-base"><span class="font-semibold">Total (MXN)</span><span class="font-extrabold" x-text="money(total)"></span></div>
+              <div class="flex justify-between text-base">
+                <span class="font-semibold">Total (MXN)</span>
+                <span class="font-extrabold" x-text="money(total)"></span>
+              </div>
             </div>
           </div>
 
@@ -260,11 +262,10 @@
 
       // Estado
       shift: 'day',
-      discount: 0,
       submitting: false,
       clientError: '',
       pickableExtras: extras.map(e => ({...e, checked: false})),
-      headcountError: '', // ← nuevo estado
+      headcountError: '', // estado para headcount
 
       // Horarios por defecto
       dayStart:   '10:00',
@@ -280,7 +281,7 @@
         this.applyShiftTimes(true);
         this.initDatepicker();
         this.lockTimeInputs();
-        this.validateHeadcount(); // ← valida al iniciar
+        this.validateHeadcount(); // valida al iniciar
       },
 
       lockTimeInputs(){
@@ -444,8 +445,8 @@
 
         if (!Number.isFinite(v) || el.value === '') {
           this.headcountError = 'Ingresa un número válido.';
-        } else if (v < 1) {
-          this.headcountError = 'El mínimo es 1 persona.';
+        } else if (v < 10) {
+          this.headcountError = 'El mínimo es 10 personas.';
         } else if (v > 70) {
           this.headcountError = 'No se permite más de 70 personas por capacidad del salón.';
         } else {
@@ -468,7 +469,9 @@
           return acc + unit;
         }, 0);
       },
-      get total(){ return Math.max(0, this.base + this.extras - (Number(this.discount)||0)); },
+      get total(){
+        return this.base + this.extras;
+      },
       money(v){ return '$' + Number(v||0).toFixed(2); },
       toggleExtra(idx){ this.pickableExtras[idx].checked = !this.pickableExtras[idx].checked; this.recalc(); },
       recalc(){},

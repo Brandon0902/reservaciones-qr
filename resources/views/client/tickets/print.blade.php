@@ -24,14 +24,6 @@
 
     /* Evitar saltos dentro de la tarjeta y sus secciones */
     .print-card, .no-break { break-inside: avoid; page-break-inside: avoid; }
-
-    /* Mini QR en header (esquina superior derecha) */
-    .qr-mini {
-      width: 110px; height: 110px;           /* ajusta 96–128px si quieres */
-      border-radius: 12px; background: #fff;
-      padding: 8px; display: grid; place-items: center;
-    }
-    .qr-mini img { width: 100%; height: auto; display: block; }
   </style>
 </head>
 <body class="text-slate-100">
@@ -57,8 +49,8 @@
 
     {{-- Tarjeta --}}
     <div class="print-card rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-slate-900 to-slate-950 text-slate-100 shadow-2xl no-break">
-      {{-- Header con mini QR a la derecha --}}
-      <div class="px-5 pt-5 pb-3 border-b border-white/10 flex items-start justify-between">
+      {{-- Header --}}
+      <div class="px-5 pt-5 pb-3 border-b border-white/10 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#6d28d9] text-white shadow">
             <svg viewBox="0 0 24 24" class="h-5 w-5"><path fill="currentColor" d="M12 2l7 4v6c0 5-3 8-7 10C8 20 5 17 5 12V6l7-4zM7 8v4c0 3 2 5 5 6c3-1 5-3 5-6V8l-5-3l-5 3z"/></svg>
@@ -69,22 +61,15 @@
           </div>
         </div>
 
-        <div class="flex flex-col items-end gap-2">
-          <div class="text-xs uppercase tracking-wide bg-white/10 border border-white/10 px-2 py-1 rounded-md">
-            Boleto {{ $token }}
-          </div>
-          @if($qrUrl)
-            <div class="qr-mini">
-              <img src="{{ $qrUrl }}" alt="QR">
-            </div>
-            <div class="text-[10px] text-slate-400 mt-1 text-right">Escanea para validar acceso</div>
-          @endif
+        <div class="text-xs uppercase tracking-wide bg-white/10 border border-white/10 px-2 py-1 rounded-md">
+          Boleto {{ $token }}
         </div>
       </div>
 
-      {{-- Cuerpo (solo datos, sin QR grande) --}}
+      {{-- Cuerpo: datos + QR grande --}}
       <div class="p-6 grid grid-cols-5 gap-6 no-break">
-        <div class="col-span-5 md:col-span-5 space-y-3">
+        {{-- Datos --}}
+        <div class="col-span-5 md:col-span-3 space-y-3">
           <div>
             <div class="text-xs text-slate-400">Evento</div>
             <div class="text-2xl font-extrabold leading-tight">{{ $reservation->event_name ?: 'Evento' }}</div>
@@ -118,6 +103,23 @@
               {{ $address }}
             </div>
           </div>
+        </div>
+
+        {{-- QR GRANDE --}}
+        <div class="col-span-5 md:col-span-2 flex flex-col items-center justify-center">
+          @if($qrUrl)
+            <div class="bg-white rounded-2xl p-3 shadow">
+              {{-- ajusta w-56 / w-64 si lo quieres aún más grande --}}
+              <img src="{{ $qrUrl }}" alt="QR" class="w-56 h-56 object-contain">
+            </div>
+            <div class="mt-2 text-[11px] text-slate-400 text-center">
+              Escanea para validar acceso
+            </div>
+          @else
+            <div class="rounded-xl border border-dashed border-white/20 h-40 w-full grid place-items-center text-sm text-slate-400">
+              QR no disponible
+            </div>
+          @endif
         </div>
       </div>
 
