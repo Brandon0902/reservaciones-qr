@@ -31,6 +31,10 @@ Route::get('/qr-test', function () {
     return redirect()->to(Storage::disk('tickets')->url('test.svg'));
 });
 
+Route::get('/t/{ticket}', [MyReservationsController::class, 'publicTicket'])
+    ->middleware('signed')
+    ->name('tickets.public');
+
 /* ===== Dashboard genérico (opcional) ===== */
 Route::get('/dashboard', fn () => view('dashboard'))
     ->middleware(['auth','verified'])
