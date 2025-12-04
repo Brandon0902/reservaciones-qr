@@ -1,221 +1,281 @@
 @php
   use Illuminate\Support\Str;
-  use Illuminate\Support\Facades\Storage;
 
-  $brand     = '#6d28d9';           // primario (morado)
-  $brand2    = '#a78bfa';           // acento
-  $bgDark    = '#0b1220';           // fondo oscuro
-  $ink       = '#e5e7eb';           // texto claro
-  $muted     = '#94a3b8';           // texto tenue
-  $border    = 'rgba(255,255,255,.12)';
+  $token = Str::upper(Str::substr($ticket->token ?? '', 0, 8));
+  $turnoText = $reservation->shift === 'day' ? 'DÍA' : 'NOCHE';
+  $rango     = $shiftRanges[$reservation->shift] ?? '';
 
-  $turnoLabel = ($reservation->shift === 'day')
-      ? 'DÍA (10:00–16:00)'
-      : 'NOCHE (19:00–02:00)';
-
-  $token     = Str::upper(Str::substr($ticket->token ?? '', 0, 8));
-  $mesaLabel = 'Mesa ' . ($ticket->id_mesa ?? '—');
-
-  // Resolver QR a ruta absoluta local (dompdf lee mejor file://)
-  $disk  = Storage::disk('tickets');
-  $qrAbs = ($ticket->qr_path && $disk->exists($ticket->qr_path)) ? $disk->path($ticket->qr_path) : null;
-  $qrSrc = $qrAbs ? 'file://' . $qrAbs : null;
-
-  $dateHuman = optional($reservation->date)->format('d/m/Y');
+  $logoFile = public_path('images/logo_polvorin.png');
+  $hasLogo  = is_file($logoFile);
 @endphp
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Boleto {{ $token ?: '—' }}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    /* Fuerza UNA sola hoja A5 horizontal, centrada, sin márgenes de página */
-    @page { margin: 0; size: A5 landscape; }
+    /* ✅ Más alto para que JAMÁS se encime el footer */
+    @page { size: 180mm 112mm; margin: 0; }
 
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      width: 210mm;      /* A5 landscape: 210x148mm */
-      height: 148mm;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: {{ $bgDark }};
-      color: {{ $ink }};
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+
+    html, body{
+      margin:0; padding:0;
+      width: 180mm;
+      height: auto; /* ✅ mejor que height fijo */
+      font-family: "Manrope","DejaVu Sans",Arial,sans-serif;
+      font-size: 12px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-      font-size: 12px;
-      line-height: 1.45;
     }
 
-    .ticket {
-      width: 95%;
-      height: 90%;
-      page-break-inside: avoid; /* ¡no cortar! */
-      background: linear-gradient(135deg, #0f172a 0%, #0b1220 60%, #060b17 100%);
-      border: 1px solid {{ $border }};
-      border-radius: 16px;
+    body { background:#0f172a; color:#f8fafc; }
+
+    .ticket{
+      width: 180mm;
+      height: 112mm; /* ✅ coincide con @page */
       overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,.35);
-      display: flex;
-      flex-direction: column;
+
+      display:flex;
+      flex-direction:column;
+
+      background:
+        radial-gradient(900px 220px at 20% -10%, rgba(109,40,217,.55), transparent 60%),
+        radial-gradient(700px 200px at 115% 20%, rgba(99,102,241,.35), transparent 55%),
+        linear-gradient(135deg, #0b1220 0%, #0f172a 55%, #0b1220 100%);
+
+      border: 1px solid rgba(148,163,184,.22);
     }
 
-    .brand-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 16px;
-      background: linear-gradient(90deg, {{ $brand }} 0%, {{ $brand2 }} 100%);
-      color: #fff;
+    .top-accent{
+      height: 6px;
+      background: linear-gradient(90deg, #6d28d9, #6366f1, #22c55e);
+      opacity:.9;
       flex: 0 0 auto;
     }
-    .brand-left { display:flex; align-items:center; gap:10px; }
-    .logo {
-      width: 32px; height: 32px; border-radius: 10px;
-      display:grid; place-items:center;
-      background: rgba(255,255,255,.16);
-    }
-    .logo svg { width:18px; height:18px; fill:#fff; }
-    .brand-title { font-weight: 700; letter-spacing:.2px; }
-    .brand-sub   { font-size: 11px; opacity: .9; }
-    .tag {
-      display:inline-block; padding: 6px 10px; border-radius: 999px;
-      background: rgba(167,139,250,.14); color: #fff; border: 1px solid rgba(255,255,255,.28);
-      font-size: 11px; font-weight: 600;
+
+    .header{
+      padding: 8mm 10mm 5mm 10mm;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(148,163,184,.18);
+      flex: 0 0 auto;
     }
 
-    .body { padding: 14px 16px; flex: 1 1 auto; }
-    .grid { display:grid; grid-template-columns: 2fr 1fr; gap:14px; height: 100%; }
-    .section-title { font-size: 11px; color: {{ $muted }}; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
-    .event-name { font-size: 20px; font-weight: 800; line-height:1.15; margin: 2px 0 6px; }
-    .pair { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:8px; }
-    .card {
-      border: 1px solid {{ $border }};
+    .brandRow{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
+
+    .logoFrame{
+      width: 38px;
+      height: 38px;
       border-radius: 12px;
-      padding: 10px;
-      background: rgba(255,255,255,.03);
-    }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .big { font-size:15px; font-weight:700; }
-
-    .qr-wrap {
-      background:#fff; border-radius: 12px; padding: 8px; text-align:center;
-      border: 1px solid rgba(0,0,0,.06);
-    }
-    .qr-wrap img { width: 100%; height: auto; border-radius: 8px; display:block; }
-    .qr-caption { font-size: 10px; color:#111; margin-top:6px; }
-
-    .divider {
-      margin: 12px 0;
-      height: 10px;
-      position: relative;
-      background: repeating-linear-gradient(90deg, transparent 0 14px, rgba(255,255,255,.06) 14px 24px);
-      border-top: 1px dashed {{ $border }};
-      border-bottom: 1px dashed {{ $border }};
-    }
-
-    .row { display:flex; align-items:center; gap:12px; }
-    .footer {
-      padding: 10px 16px;
-      display:flex; align-items:center; justify-content:space-between;
-      color: {{ $muted }};
-      font-size: 11px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(148,163,184,.22);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
       flex: 0 0 auto;
-      border-top: 1px solid {{ $border }};
-      background: rgba(255,255,255,.02);
     }
-    .muted { color: {{ $muted }}; }
+    .logoFrame img{
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      display:block;
+    }
+
+    .brand .name{ font-weight:800; letter-spacing:.02em; font-size:12px; margin:0; }
+    .brand .sub{ margin:2px 0 0 0; font-size:10px; color:#cbd5e1; opacity:.85; }
+
+    .badge{
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      padding:7px 10px;
+      border-radius:12px;
+      background: rgba(17,28,49,.85);
+      border: 1px solid rgba(148,163,184,.22);
+      white-space:nowrap;
+      flex: 0 0 auto;
+    }
+
+    /* ✅ content ocupa el “resto” del alto, footer queda abajo */
+    .content{
+      padding: 6mm 10mm 5mm 10mm;
+      display:grid;
+      grid-template-columns: 62% 38%;
+      gap: 9mm;
+      align-items:start;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .label{ font-size:10px; color:#cbd5e1; opacity:.75; margin:0 0 4px 0; }
+    .title{
+      margin:0 0 8px 0;
+      font-size:18px;
+      font-weight:800;
+      line-height:1.12;
+      overflow:hidden;
+      display:-webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      margin-bottom:8px;
+    }
+
+    .kv{
+      background: rgba(17,28,49,.80);
+      border: 1px solid rgba(148,163,184,.18);
+      border-radius:14px;
+      padding:10px;
+    }
+    .kv .v{
+      font-size:13px;
+      font-weight:700;
+      margin-top:2px;
+      line-height:1.2;
+    }
+
+    .code{ letter-spacing:.18em; }
+
+    /* ✅ reduce overflow real (Spatie/Chrome a veces ignora line-clamp) */
+    .addr .v{
+      font-size:12px;
+      font-weight:600;
+      line-height:1.3;
+      max-height: 2.6em; /* 2 líneas reales */
+      overflow:hidden;
+    }
+
+    .qrWrap{ text-align:center; }
+    .qrBox{
+      display:inline-block;
+      background:#fff;
+      border-radius:18px;
+      padding:10px;
+      border:1px solid #e5e7eb;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    }
+    .qrImg{ width: 162px; height: 162px; }
+    .qrHint{ margin-top:6px; font-size:10px; color:#cbd5e1; opacity:.75; }
+
+    .footer{
+      padding: 4mm 10mm 5mm 10mm;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:9px;
+      line-height:1.25;
+      color:#cbd5e1;
+      opacity:.75;
+      border-top: 1px solid rgba(148,163,184,.16);
+      flex: 0 0 auto;
+    }
+
+    .footer .left{
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      min-width:0;
+      flex: 1 1 auto;
+    }
+    .footer .right{
+      flex: 0 0 auto;
+      white-space:nowrap;
+    }
   </style>
 </head>
 <body>
   <div class="ticket">
-    {{-- CINTA SUPERIOR --}}
-    <div class="brand-bar">
-      <div class="brand-left">
-        <div class="logo">
-          <svg viewBox="0 0 24 24"><path d="M12 2l7 4v6c0 5-3 8-7 10C8 20 5 17 5 12V6l7-4zM7 8v4c0 3 2 5 5 6c3-1 5-3 5-6V8l-5-3l-5 3z"/></svg>
+    <div class="top-accent"></div>
+
+    <div class="header">
+      <div class="brandRow">
+        <div class="logoFrame">
+          @if($hasLogo)
+            {{-- ✅ SIN comillas, para que no imprima texto raro --}}
+            <img src=@inlinedImage($logoFile) alt="Logo">
+          @endif
         </div>
-        <div>
-          <div class="brand-title">Salón de eventos el Polvorín</div>
-          <div class="brand-sub">Reservaciones & boletos QR</div>
+
+        <div class="brand">
+          <p class="name">Salón de eventos el Polvorín</p>
+          <p class="sub">Reservaciones & QR</p>
         </div>
       </div>
-      <span class="tag">Boleto {{ $token ?: '—' }}</span>
+
+      <div class="badge">BOLETO {{ $token }}</div>
     </div>
 
-    {{-- CUERPO --}}
-    <div class="body">
-      <div class="grid">
-        {{-- Izquierda --}}
-        <div>
-          <div class="section-title">Evento</div>
-          <div class="event-name">{{ $reservation->event_name ?: 'Evento' }}</div>
+    <div class="content">
+      <div>
+        <p class="label">Evento</p>
+        <p class="title">{{ $reservation->event_name ?: 'Evento' }}</p>
 
-          <div class="pair">
-            <div class="card">
-              <div class="section-title" style="margin-bottom:4px">Fecha</div>
-              <div class="big">{{ $dateHuman }}</div>
-            </div>
-            <div class="card">
-              <div class="section-title" style="margin-bottom:4px">Horario</div>
-              <div class="big">{{ $turnoLabel }}</div>
-            </div>
+        <div class="grid2">
+          <div class="kv">
+            <div class="label">Fecha</div>
+            <div class="v">{{ optional($reservation->date)->format('d/m/Y') }}</div>
           </div>
 
-          <div class="pair">
-            <div class="card">
-              <div class="section-title" style="margin-bottom:4px">Mesa</div>
-              <div class="big">{{ $mesaLabel }}</div>
-            </div>
-            <div class="card">
-              <div class="section-title" style="margin-bottom:4px">Código</div>
-              <div class="big mono">{{ $token ?: '—' }}</div>
-            </div>
+          <div class="kv">
+            <div class="label">Horario</div>
+            <div class="v">{{ $turnoText }} @if($rango) ({{ $rango }}) @endif</div>
           </div>
 
-          <div class="card" style="margin-top:10px">
-            <div class="section-title" style="margin-bottom:6px">Ubicación</div>
-            <div>{{ $address }}</div>
+          <div class="kv">
+            <div class="label">Mesa</div>
+            <div class="v">Mesa {{ $ticket->id_mesa }}</div>
+          </div>
+
+          <div class="kv">
+            <div class="label">Código</div>
+            <div class="v code">{{ $token }}</div>
           </div>
         </div>
 
-        {{-- Derecha --}}
-        <div>
-          <div class="section-title">Acceso</div>
-          <div class="qr-wrap">
-            @if($qrSrc)
-              <img src="{{ $qrSrc }}" alt="QR del boleto">
-              <div class="qr-caption mono">Escanea en el acceso</div>
-            @else
-              <div style="padding:36px 8px;color:#111">QR no disponible</div>
-            @endif
-          </div>
-
-          <div class="card" style="margin-top:10px">
-            <div class="section-title" style="margin-bottom:6px">Indicaciones</div>
-            <ul style="margin:0; padding-left:16px;">
-              <li>Presenta el QR en la entrada.</li>
-              <li>Mantén este PDF a la mano (impreso o en tu celular).</li>
-              <li>Válido solo para la fecha y horario indicados.</li>
-            </ul>
-          </div>
+        <div class="kv addr">
+          <div class="label">Ubicación</div>
+          <div class="v">{{ $address }}</div>
         </div>
       </div>
 
-      <div class="divider"></div>
-
-      <div class="row" style="justify-content:space-between;">
-        <span class="muted">Reservación #{{ $reservation->id }}</span>
-        <span class="muted">Gracias por tu preferencia</span>
+      <div class="qrWrap">
+        @if(!empty($qrDataUri))
+          <div class="qrBox">
+            <img class="qrImg" src="{{ $qrDataUri }}" alt="QR">
+          </div>
+          <div class="qrHint">Escanea para validar acceso</div>
+        @else
+          <div class="qrBox">
+            <div style="width:162px;height:162px;line-height:162px;color:#111;">QR</div>
+          </div>
+        @endif
       </div>
     </div>
 
-    {{-- PIE --}}
     <div class="footer">
-      <span>© {{ now()->year }} Salón de eventos el Polvorín</span>
-      <span class="muted">Este boleto es intransferible.</span>
+      <div class="left">
+        Reservación #{{ $reservation->id }} — Emitido: {{ optional($ticket->issued_at)->format('d/m/Y H:i') }}
+      </div>
+      <div class="right">© {{ now()->year }} Salón de eventos el Polvorín</div>
     </div>
   </div>
 </body>
