@@ -16,6 +16,7 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 // ✅ Spatie PDF
 use Spatie\LaravelPdf\Facades\Pdf as SpatiePdf;
 use Spatie\LaravelPdf\Enums\Unit;
+use Spatie\Browsershot\Browsershot;
 
 use App\Mail\TicketLinkMail;
 
@@ -158,13 +159,13 @@ class MyReservationsController extends Controller
         $pdfFilename  = "boleto-{$code}.pdf";
 
         // ✅ PDF “recortado” al tamaño del boleto (180mm x 105mm), sin margen
-        // Spatie permite paperSize con unidades (mm). :contentReference[oaicite:3]{index=3}
         $tmpDir = storage_path('app/tmp');
         if (!is_dir($tmpDir)) {
             @mkdir($tmpDir, 0755, true);
         }
         $tmpPdfPath = $tmpDir . '/ticket-' . Str::uuid() . '.pdf';
 
+        // ✅ Forzar Chrome (deb) + entorno headless para www-data
         SpatiePdf::view('pdf.ticket', [
                 'reservation' => $reservation,
                 'ticket'      => $ticket,
@@ -174,7 +175,25 @@ class MyReservationsController extends Controller
             ])
             ->paperSize(180, 105, Unit::Millimeter)
             ->margins(0, 0, 0, 0)
-            ->save($tmpPdfPath); // :contentReference[oaicite:4]{index=4}
+            ->withBrowsershot(function (Browsershot $b) {
+                $b->setChromePath(env('BROWSERSHOT_CHROME_PATH', '/usr/bin/google-chrome'))
+                  ->noSandbox()
+                  ->setEnvironmentOptions([
+                      'HOME'            => '/tmp',
+                      'XDG_CACHE_HOME'  => '/tmp',
+                      'XDG_CONFIG_HOME' => '/tmp',
+                  ])
+                  ->setOption('args', [
+                      '--disable-dev-shm-usage',
+                      '--no-first-run',
+                      '--no-default-browser-check',
+                      '--user-data-dir=/tmp/chrome-wwwdata',
+                      '--disk-cache-dir=/tmp/chrome-cache',
+                      '--disable-crash-reporter',
+                      '--disable-features=Crashpad',
+                  ]);
+            })
+            ->save($tmpPdfPath);
 
         $pdfBinary = file_get_contents($tmpPdfPath);
         @unlink($tmpPdfPath);
