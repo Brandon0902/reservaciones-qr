@@ -4,9 +4,6 @@
   $token = Str::upper(Str::substr($ticket->token ?? '', 0, 8));
   $turnoText = $reservation->shift === 'day' ? 'DÍA' : 'NOCHE';
   $rango     = $shiftRanges[$reservation->shift] ?? '';
-
-  $logoFile = public_path('images/logo_polvorin.png');
-  $hasLogo  = is_file($logoFile);
 @endphp
 <!doctype html>
 <html lang="es">
@@ -18,26 +15,30 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    /* ✅ Más alto para que JAMÁS se encime el footer */
+    /* ✅ La hoja EXACTA del boleto (sin margen) */
     @page { size: 180mm 112mm; margin: 0; }
 
     * { box-sizing: border-box; }
 
     html, body{
       margin:0; padding:0;
-      width: 180mm;
-      height: auto; /* ✅ mejor que height fijo */
+      width: 100%;
+      height: 100%;
       font-family: "Manrope","DejaVu Sans",Arial,sans-serif;
       font-size: 12px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
 
-    body { background:#0f172a; color:#f8fafc; }
+    /* ✅ Evita “fondo blanco” si el motor respeta backgrounds */
+    body{
+      background: #0b1220;
+      color:#f8fafc;
+    }
 
     .ticket{
-      width: 180mm;
-      height: 112mm; /* ✅ coincide con @page */
+      width: 100%;
+      height: 100%;
       overflow: hidden;
 
       display:flex;
@@ -48,7 +49,8 @@
         radial-gradient(700px 200px at 115% 20%, rgba(99,102,241,.35), transparent 55%),
         linear-gradient(135deg, #0b1220 0%, #0f172a 55%, #0b1220 100%);
 
-      border: 1px solid rgba(148,163,184,.22);
+      /* ✅ sin borde para que no se vea “marco” y se vea más limpio */
+      border: 0;
     }
 
     .top-accent{
@@ -68,32 +70,6 @@
       flex: 0 0 auto;
     }
 
-    .brandRow{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-width:0;
-    }
-
-    .logoFrame{
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(148,163,184,.22);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      overflow:hidden;
-      flex: 0 0 auto;
-    }
-    .logoFrame img{
-      width: 32px;
-      height: 32px;
-      object-fit: contain;
-      display:block;
-    }
-
     .brand .name{ font-weight:800; letter-spacing:.02em; font-size:12px; margin:0; }
     .brand .sub{ margin:2px 0 0 0; font-size:10px; color:#cbd5e1; opacity:.85; }
 
@@ -110,7 +86,6 @@
       flex: 0 0 auto;
     }
 
-    /* ✅ content ocupa el “resto” del alto, footer queda abajo */
     .content{
       padding: 6mm 10mm 5mm 10mm;
       display:grid;
@@ -155,12 +130,11 @@
 
     .code{ letter-spacing:.18em; }
 
-    /* ✅ reduce overflow real (Spatie/Chrome a veces ignora line-clamp) */
     .addr .v{
       font-size:12px;
       font-weight:600;
       line-height:1.3;
-      max-height: 2.6em; /* 2 líneas reales */
+      max-height: 2.6em;
       overflow:hidden;
     }
 
@@ -207,18 +181,9 @@
     <div class="top-accent"></div>
 
     <div class="header">
-      <div class="brandRow">
-        <div class="logoFrame">
-          @if($hasLogo)
-            {{-- ✅ SIN comillas, para que no imprima texto raro --}}
-            <img src=@inlinedImage($logoFile) alt="Logo">
-          @endif
-        </div>
-
-        <div class="brand">
-          <p class="name">Salón de eventos el Polvorín</p>
-          <p class="sub">Reservaciones & QR</p>
-        </div>
+      <div class="brand">
+        <p class="name">Salón de eventos el Polvorín</p>
+        <p class="sub">Reservaciones & QR</p>
       </div>
 
       <div class="badge">BOLETO {{ $token }}</div>
