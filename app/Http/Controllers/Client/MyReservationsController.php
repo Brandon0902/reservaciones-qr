@@ -80,6 +80,7 @@ class MyReservationsController extends Controller
             'day'   => '10:00–16:00',
             'night' => '19:00–02:00',
         ];
+
         $address = 'Dirección: Av. Jesus Michel Gonzalez 3232, Paseo del Prado, 45610 San Pedro Tlaquepaque, Jal.';
 
         $qrUrl = $this->ensureQrStored($ticket);
@@ -121,12 +122,12 @@ class MyReservationsController extends Controller
         abort_unless($ticket->reservation && $ticket->reservation->user_id === $request->user()->id, 403);
 
         $emails = collect(explode(',', $data['emails']))
-            ->map(fn($e) => trim($e))
+            ->map(fn ($e) => trim($e))
             ->filter()
             ->unique()
             ->values();
 
-        $invalid = $emails->filter(fn($e) => !filter_var($e, FILTER_VALIDATE_EMAIL))->values();
+        $invalid = $emails->filter(fn ($e) => !filter_var($e, FILTER_VALIDATE_EMAIL))->values();
         if ($invalid->isNotEmpty()) {
             return response()->json([
                 'message' => 'Hay correos inválidos: ' . $invalid->implode(', ')
@@ -152,20 +153,19 @@ class MyReservationsController extends Controller
             ['ticket' => $ticket->id]
         );
 
-        $reservation  = $ticket->reservation;
-        $shiftRanges  = ['day' => '10:00–16:00', 'night' => '19:00–02:00'];
-        $address      = 'Dirección: Av. Jesus Michel Gonzalez 3232, Paseo del Prado, 45610 San Pedro Tlaquepaque, Jal.';
-        $code         = strtoupper(substr((string)$ticket->token, 0, 8));
-        $pdfFilename  = "boleto-{$code}.pdf";
+        $reservation = $ticket->reservation;
+        $shiftRanges = ['day' => '10:00–16:00', 'night' => '19:00–02:00'];
+        $address     = 'Dirección: Av. Jesus Michel Gonzalez 3232, Paseo del Prado, 45610 San Pedro Tlaquepaque, Jal.';
+        $code        = strtoupper(substr((string) $ticket->token, 0, 8));
+        $pdfFilename = "boleto-{$code}.pdf";
 
-        // ✅ PDF “recortado” al tamaño del boleto (180mm x 105mm), sin margen
+        // ✅ PDF “recortado” al tamaño del boleto (DEBE coincidir con @page en la vista)
         $tmpDir = storage_path('app/tmp');
         if (!is_dir($tmpDir)) {
             @mkdir($tmpDir, 0755, true);
         }
         $tmpPdfPath = $tmpDir . '/ticket-' . Str::uuid() . '.pdf';
 
-        // ✅ Forzar Chrome (deb) + entorno headless para www-data
         SpatiePdf::view('pdf.ticket', [
                 'reservation' => $reservation,
                 'ticket'      => $ticket,
@@ -173,11 +173,16 @@ class MyReservationsController extends Controller
                 'address'     => $address,
                 'qrDataUri'   => $qrDataUri,
             ])
-            ->paperSize(180, 105, Unit::Millimeter)
+            // ✅ antes estaba en 180x105; ahora iguala el @page (180x112)
+            ->paperSize(180, 112, Unit::Millimeter)
             ->margins(0, 0, 0, 0)
             ->withBrowsershot(function (Browsershot $b) {
                 $b->setChromePath(env('BROWSERSHOT_CHROME_PATH', '/usr/bin/google-chrome'))
                   ->noSandbox()
+                  // ✅ evita que el fondo/gradiente salga blanco
+                  ->showBackground()
+                  // ✅ respeta el @page size del CSS
+                  ->setOption('preferCSSPageSize', true)
                   ->setEnvironmentOptions([
                       'HOME'            => '/tmp',
                       'XDG_CACHE_HOME'  => '/tmp',
@@ -195,7 +200,7 @@ class MyReservationsController extends Controller
             })
             ->save($tmpPdfPath);
 
-        $pdfBinary = file_get_contents($tmpPdfPath);
+        $pdfBinary = @file_get_contents($tmpPdfPath);
         @unlink($tmpPdfPath);
 
         foreach ($emails as $to) {
